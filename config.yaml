@@ -1,0 +1,173 @@
+# WMT21 Task 3 - Critical Error Detection Project Configuration
+
+# Task Configuration
+task:
+  name: "critical_error_detection"
+  type: "binary_classification"
+  description: "WMT21 Quality Estimation Task 3 - Critical Error Detection"
+  
+# Data Configuration
+data:
+  # Data source information
+  source_url: "https://github.com/WMT-QE-Task/wmt-qe-2021-data/tree/main/task3-critical-error-detection"
+  
+  # Actual data paths from the project
+  train_data_dir: "src/data/catastrophic_errors"
+  test_data_dir: "src/data/catastrophic_errors"
+  gold_labels_dir: "src/data/catastrophic_errors_goldlabels"
+  
+  # Language pairs for Task 3 (actual files available)
+  language_pairs:
+    - "en-cs"  # English-Czech (encs_majority_*.tsv)
+    - "en-ja"  # English-Japanese (enja_majority_*.tsv)
+    - "en-zh"  # English-Chinese (enzh_majority_*.tsv)
+    - "en-de"  # English-German (ende_majority_*.tsv)
+  
+  # Data format information
+  train_format: "ID\tsource\ttarget\t[scores]\taggregated_label"
+  test_format: "ID\tsource\ttarget"
+  
+  # Critical error categories (from WMT21 task description)
+  error_categories:
+    - "TOX"  # Toxicity deviation (hate, violence, profanity)
+    - "SAF"  # Safety risks deviation
+    - "NAM"  # Named entities deviation
+    - "SEN"  # Sentiment polarity or negation deviation
+    - "NUM"  # Units/time/date/numbers deviation
+  
+  # Label mappings
+  label_mapping:
+    "ERR": 1  # Critical error present
+    "NOT": 0  # No critical error
+
+  # Data split configuration
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  random_seed: 42
+
+# Model Configuration
+model:
+  # Base model
+  model_name: "distilbert-base-multilingual-cased"
+  model_type: "distilbert"
+  
+  # Task-specific settings
+  num_labels: 2  # Binary classification (0: no critical error, 1: critical error)
+  max_seq_length: 512
+  
+  # Training hyperparameters
+  training:
+    batch_size: 16
+    learning_rate: 2e-5
+    num_epochs: 3
+    weight_decay: 0.01
+    warmup_steps: 500
+    gradient_accumulation_steps: 1
+    fp16: true  # Use mixed precision training
+    
+  # Optimizer settings
+  optimizer:
+    type: "adamw"
+    eps: 1e-8
+    betas: [0.9, 0.999]
+
+# Directory Paths (relative to project root)
+paths:
+  data_dir: "src/data"
+  raw_data_dir: "src/data/raw"
+  processed_data_dir: "src/data/processed"
+  models_dir: "src/models"
+  checkpoints_dir: "results/checkpoints"
+  logs_dir: "logs"
+  results_dir: "results"
+  figures_dir: "results/figures"
+
+# File naming conventions
+filenames:
+  # Raw data files (downloaded from WMT21)
+  train_data: "train.tsv"
+  dev_data: "dev.tsv"
+  test_data: "test.tsv"
+  
+  # Processed data files
+  processed_train: "processed_train.json"
+  processed_dev: "processed_dev.json"
+  processed_test: "processed_test.json"
+  
+  # Model files
+  model_config: "model_config.json"
+  tokenizer_config: "tokenizer_config.json"
+  best_model: "best_model.pth"
+  final_model: "final_model"
+  
+  # Results files
+  predictions: "predictions.json"
+  metrics: "metrics.json"
+  confusion_matrix: "confusion_matrix.png"
+  training_history: "training_history.json"
+
+# Data Processing Configuration
+preprocessing:
+  # Text processing
+  lowercase: false  # Keep original casing for multilingual model
+  remove_special_chars: false
+  max_length: 512
+  
+  # Tokenization
+  tokenizer_settings:
+    padding: "max_length"
+    truncation: true
+    return_attention_mask: true
+    return_token_type_ids: false
+
+# Evaluation Configuration
+evaluation:
+  # Primary metric for Task 3
+  primary_metric: "mcc"  # Matthews Correlation Coefficient
+  
+  # Additional metrics
+  additional_metrics:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1"
+    - "auc_roc"
+  
+  # Evaluation settings
+  save_predictions: true
+  save_attention_weights: false
+  compute_class_weights: true
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  console: true
+  file: true
+  tensorboard: true
+  wandb: false  # Set to true if using Weights & Biases
+  
+  # Logging intervals
+  log_interval: 100
+  eval_interval: 500
+  save_interval: 1000
+
+# Hardware Configuration
+hardware:
+  device: "auto"  # auto, cpu, cuda, mps
+  mixed_precision: true
+  dataloader_num_workers: 4
+  pin_memory: true
+
+# Reproducibility
+reproducibility:
+  seed: 42
+  deterministic: true
+  benchmark: false
+
+# Submission Configuration (for WMT21 format)
+submission:
+  format: "tsv"  # Tab-separated values
+  include_metadata: true
+  disk_footprint_bytes: null  # Will be calculated
+  num_parameters: null        # Will be calculated

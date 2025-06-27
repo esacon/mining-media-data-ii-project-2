@@ -1,0 +1,24 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pandas = "*"
+openpyxl = "*"
+black = "*"
+flake8 = "*"
+pre-commit = "*"
+pytest = "*"
+isort = {extras = ["colors"], version = "*"}
+polars = "*"
+ijson = "*"
+tqdm = "*"
+torch = "*"
+scikit-learn = "*"
+transformers = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.11"
