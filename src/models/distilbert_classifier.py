@@ -5,20 +5,17 @@ This module implements a fine-tuned DistilBERT model for binary classification
 of critical translation errors.
 """
 
+from typing import Any, Dict, Optional, Tuple
+
 import torch
 import torch.nn as nn
-from transformers import (
-    DistilBertModel,
-    DistilBertPreTrainedModel,
-    DistilBertConfig
-)
-from typing import Optional, Tuple, Dict, Any
+from transformers import DistilBertConfig, DistilBertModel, DistilBertPreTrainedModel
 
 
 class DistilBERTClassifier(DistilBertPreTrainedModel):
     """
     DistilBERT model for sequence classification.
-    
+
     This model fine-tunes DistilBERT for binary classification of critical
     translation errors in machine translation output.
     """
@@ -27,11 +24,11 @@ class DistilBERTClassifier(DistilBertPreTrainedModel):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.distilbert = DistilBertModel(config)
-        
+
         # Classification head
         self.dropout = nn.Dropout(config.dropout)
         self.classifier = nn.Linear(config.dim, config.num_labels)
-        
+
         # Initialize weights
         self.init_weights()
 
@@ -48,7 +45,7 @@ class DistilBERTClassifier(DistilBertPreTrainedModel):
     ) -> Tuple[torch.Tensor, ...]:
         """
         Forward pass of the model.
-        
+
         Args:
             input_ids: Input token IDs
             attention_mask: Attention mask
@@ -58,7 +55,7 @@ class DistilBERTClassifier(DistilBertPreTrainedModel):
             output_attentions: Whether to return attentions
             output_hidden_states: Whether to return hidden states
             return_dict: Whether to return dict
-            
+
         Returns:
             Tuple containing loss and logits
         """
@@ -78,7 +75,7 @@ class DistilBERTClassifier(DistilBertPreTrainedModel):
         # Use [CLS] token representation
         hidden_state = distilbert_output[0]  # (batch_size, seq_len, dim)
         pooled_output = hidden_state[:, 0]  # (batch_size, dim)
-        
+
         # Apply dropout and classification
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
@@ -93,29 +90,29 @@ class DistilBERTClassifier(DistilBertPreTrainedModel):
             return ((loss,) + output) if loss is not None else output
 
         return {
-            'loss': loss,
-            'logits': logits,
-            'hidden_states': distilbert_output.hidden_states,
-            'attentions': distilbert_output.attentions,
+            "loss": loss,
+            "logits": logits,
+            "hidden_states": distilbert_output.hidden_states,
+            "attentions": distilbert_output.attentions,
         }
 
     def get_model_size(self) -> Dict[str, int]:
         """
         Calculate model size information for WMT21 submission.
-        
+
         Returns:
             Dictionary with model size metrics
         """
         # Count parameters
         total_params = sum(p.numel() for p in self.parameters())
         trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        
+
         # Estimate disk footprint (rough approximation)
         # Each parameter is typically 4 bytes (float32)
         disk_footprint_bytes = total_params * 4
-        
+
         return {
-            'total_parameters': total_params,
-            'trainable_parameters': trainable_params,
-            'disk_footprint_bytes': disk_footprint_bytes
-        } 
+            "total_parameters": total_params,
+            "trainable_parameters": trainable_params,
+            "disk_footprint_bytes": disk_footprint_bytes,
+        }

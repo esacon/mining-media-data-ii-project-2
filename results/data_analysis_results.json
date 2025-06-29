@@ -1,0 +1,31 @@
+{
+  "en-de": {
+    "language_pair": "en-de",
+    "files_found": {
+      "train": "data/catastrophic_errors/ende_majority_train.tsv",
+      "dev": "data/catastrophic_errors/ende_majority_dev.tsv",
+      "test": "data/catastrophic_errors/ende_majority_test_blind.tsv"
+    },
+    "train": {
+      "samples": 7878,
+      "critical_errors": 2204,
+      "error_rate": 0.27976643818227975,
+      "no_errors": 5674
+    },
+    "dev": {
+      "samples": 1000,
+      "critical_errors": 281,
+      "error_rate": 0.281,
+      "no_errors": 719
+    },
+    "test": {
+      "samples": 1000,
+      "note": "Labels not available for test data"
+    },
+    "overall": {
+      "total_samples": 8878,
+      "total_critical_errors": 2485,
+      "overall_error_rate": 0.279905384095517
+    }
+  }
+}

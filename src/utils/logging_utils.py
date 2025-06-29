@@ -34,9 +34,7 @@ def setup_logger(
     for handler in list(logger.handlers):
         logger.removeHandler(handler)
 
-    current_format_string = (
-        format_string if format_string is not None else DEFAULT_LOG_FORMAT
-    )
+    current_format_string = format_string if format_string is not None else DEFAULT_LOG_FORMAT
     formatter = logging.Formatter(current_format_string)
 
     if log_to_console:
@@ -48,9 +46,7 @@ def setup_logger(
         log_file_path = Path(log_file)
         try:
             log_file_path.parent.mkdir(parents=True, exist_ok=True)
-            file_handler = logging.FileHandler(
-                log_file_path, mode="a", encoding="utf-8"
-            )
+            file_handler = logging.FileHandler(log_file_path, mode="a", encoding="utf-8")
             file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
         except Exception as e:

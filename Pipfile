@@ -17,6 +17,10 @@ tqdm = "*"
 torch = "*"
 scikit-learn = "*"
 transformers = "*"
+numpy = "*"
+matplotlib = "*"
+seaborn = "*"
+pyyaml = "*"
 
 [dev-packages]
 

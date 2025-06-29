@@ -6,11 +6,6 @@ binary classification of critical translation errors.
 """
 
 from .distilbert_classifier import DistilBERTClassifier
-from .model_utils import ModelUtils
 from .trainer import Trainer
 
-__all__ = [
-    "DistilBERTClassifier",
-    "ModelUtils", 
-    "Trainer"
-] 
+__all__ = ["DistilBERTClassifier", "Trainer"]
