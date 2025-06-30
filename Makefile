@@ -70,7 +70,7 @@ install:
 train:
 	@echo "$(BOLD)Training model...$(RESET)"
 	@mkdir -p $(RESULTS_DIR)/checkpoints $(LOGS_DIR)
-	python scripts/run_pipeline.py --config $(CONFIG_FILE) train \
+	python -m src.runner --config $(CONFIG_FILE) train \
 		--data $(DATA_DIR) \
 		$(if $(LANG),--language-pair $(LANG)) \
 		$(if $(SAMPLE_SIZE),--sample-size $(SAMPLE_SIZE))
@@ -86,7 +86,7 @@ evaluate:
 		echo "Usage: make evaluate MODEL=path/to/model.pt"; \
 		exit 1; \
 	fi
-	python scripts/run_pipeline.py --config $(CONFIG_FILE) evaluate \
+	python -m src.runner --config $(CONFIG_FILE) evaluate \
 		--model "$(MODEL_PATH)" \
 		--data $(DATA_DIR) \
 		$(if $(LANG),--language-pair $(LANG)) \
@@ -102,7 +102,7 @@ predict:
 		echo "Usage: make predict MODEL=path/to/model.pt"; \
 		exit 1; \
 	fi
-	python scripts/run_pipeline.py --config $(CONFIG_FILE) predict \
+	python -m src.runner --config $(CONFIG_FILE) predict \
 		--model "$(MODEL_PATH)" \
 		--data $(DATA_DIR) \
 		$(if $(LANG),--language-pair $(LANG)) \
@@ -112,14 +112,14 @@ predict:
 analyze:
 	@echo "$(BOLD)Running data analysis...$(RESET)"
 	@mkdir -p $(RESULTS_DIR)
-	python scripts/run_pipeline.py --config $(CONFIG_FILE) analyze \
+	python -m src.runner --config $(CONFIG_FILE) analyze \
 		--data-dir $(DATA_DIR) \
 		$(if $(LANG),--language-pairs $(LANG))
 
 debug-train:
 	@echo "$(BOLD)Debug training model (fast testing mode)...$(RESET)"
 	@mkdir -p $(RESULTS_DIR)/checkpoints $(LOGS_DIR)
-	python scripts/run_pipeline.py --config $(CONFIG_FILE) --debug-test train \
+	python -m src.runner --config $(CONFIG_FILE) --debug-test train \
 		--data $(DATA_DIR) \
 		$(if $(LANG),--language-pair $(LANG)) \
 		$(if $(SAMPLE_SIZE),--sample-size $(SAMPLE_SIZE))
@@ -135,7 +135,7 @@ debug-evaluate:
 		echo "Usage: make debug-evaluate MODEL=path/to/model.pt"; \
 		exit 1; \
 	fi
-	python scripts/run_pipeline.py --config $(CONFIG_FILE) --debug-test evaluate \
+	python -m src.runner --config $(CONFIG_FILE) --debug-test evaluate \
 		--model "$(MODEL_PATH)" \
 		--data $(DATA_DIR) \
 		$(if $(LANG),--language-pair $(LANG)) \
@@ -151,7 +151,7 @@ debug-predict:
 		echo "Usage: make debug-predict MODEL=path/to/model.pt"; \
 		exit 1; \
 	fi
-	python scripts/run_pipeline.py --config $(CONFIG_FILE) --debug-test predict \
+	python -m src.runner --config $(CONFIG_FILE) --debug-test predict \
 		--model "$(MODEL_PATH)" \
 		--data $(DATA_DIR) \
 		$(if $(LANG),--language-pair $(LANG)) \
@@ -161,7 +161,7 @@ debug-predict:
 debug-experiment:
 	@echo "$(BOLD)Debug full experiment (fast testing mode)...$(RESET)"
 	@mkdir -p $(RESULTS_DIR)/checkpoints $(LOGS_DIR)
-	python scripts/run_pipeline.py --config $(CONFIG_FILE) --debug-test experiment \
+	python -m src.runner --config $(CONFIG_FILE) --debug-test experiment \
 		--data $(DATA_DIR) \
 		$(if $(LANG),--language-pair $(LANG)) \
 		$(if $(SAMPLE_SIZE),--sample-size $(SAMPLE_SIZE))
