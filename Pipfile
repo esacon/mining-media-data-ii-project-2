@@ -4,26 +4,32 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-pandas = "*"
-openpyxl = "*"
-black = "*"
-flake8 = "*"
-pre-commit = "*"
-pytest = "*"
-isort = {extras = ["colors"], version = "*"}
-polars = "*"
-ijson = "*"
-tqdm = "*"
-torch = "*"
-scikit-learn = "*"
-transformers = "*"
-numpy = "*"
-matplotlib = "*"
-seaborn = "*"
-pyyaml = "*"
-pyupgrade = "*"
-autoflake = "*"
-mypy = "*"
+# Core ML/Data Science
+torch = ">=2.7.0"
+transformers = ">=4.53.0"
+scikit-learn = ">=1.7.0"
+pandas = ">=2.3.0"
+numpy = ">=2.3.0"
+tqdm = ">=4.67.0"
+
+# Configuration
+pyyaml = ">=6.0.0"
+
+# Development Tools
+black = ">=25.1.0"
+flake8 = ">=7.3.0"
+isort = {extras = ["colors"], version = ">=6.0.1"}
+mypy = ">=1.16.0"
+pre-commit = ">=4.2.0"
+pytest = ">=8.4.0"
+autoflake = ">=2.3.0"
+pyupgrade = ">=3.20.0"
+
+# Runtime dependencies (automatically resolved)
+tokenizers = ">=0.21.0"
+safetensors = ">=0.5.0"
+requests = ">=2.32.0"
+huggingface-hub = ">=0.33.0"
 
 [dev-packages]
 
