@@ -1,4 +1,33 @@
 {
+  "en-cs": {
+    "language_pair": "en-cs",
+    "files_found": {
+      "train": "data/catastrophic_errors/encs_majority_train.tsv",
+      "dev": "data/catastrophic_errors/encs_majority_dev.tsv",
+      "test": "data/catastrophic_errors/encs_majority_test_blind.tsv"
+    },
+    "train": {
+      "samples": 7476,
+      "critical_errors": 1288,
+      "error_rate": 0.17228464419475656,
+      "no_errors": 6188
+    },
+    "dev": {
+      "samples": 1000,
+      "critical_errors": 160,
+      "error_rate": 0.16,
+      "no_errors": 840
+    },
+    "test": {
+      "samples": 1000,
+      "note": "Labels not available for test data"
+    },
+    "overall": {
+      "total_samples": 8476,
+      "total_critical_errors": 1448,
+      "overall_error_rate": 0.1708352996696555
+    }
+  },
   "en-de": {
     "language_pair": "en-de",
     "files_found": {

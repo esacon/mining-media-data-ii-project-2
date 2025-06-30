@@ -9,7 +9,7 @@ model:
 # Training Configuration
 training:
   batch_size: 16
-  learning_rate: 2e-5
+  learning_rate: 2.0e-5
   num_epochs: 3
   weight_decay: 0.01
   warmup_steps: 500
@@ -21,6 +21,8 @@ data:
   train_ratio: 0.8
   val_ratio: 0.1
   random_seed: 42
+  num_workers: 0
+  pin_memory: false
 
 # Output Paths
 paths:

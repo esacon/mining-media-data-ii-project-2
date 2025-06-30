@@ -87,7 +87,13 @@ class BasePipeline:
         """Load model from checkpoint."""
         self.logger.info(f"Loading model from: {model_path}")
 
-        checkpoint = torch.load(model_path, map_location=self.device)
+        try:
+            # Try loading with weights_only=False for compatibility with tokenizer objects
+            checkpoint = torch.load(model_path, map_location=self.device, weights_only=False)
+        except Exception as e:
+            self.logger.warning(f"Failed to load checkpoint with weights_only=False: {e}")
+            # Fallback to default loading
+            checkpoint = torch.load(model_path, map_location=self.device)
 
         # Get model configuration
         if "config" in checkpoint:

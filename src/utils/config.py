@@ -113,39 +113,47 @@ class ConfigLoader:
         """Validate specific configuration values."""
 
         # Validate model config
-        num_labels = int(config["model"]["num_labels"])
-        if num_labels < 1:
+        config["model"]["num_labels"] = int(config["model"]["num_labels"])
+        if config["model"]["num_labels"] < 1:
             raise ValueError("num_labels must be positive")
 
-        max_seq_length = int(config["model"]["max_seq_length"])
-        if max_seq_length < 1 or max_seq_length > 4096:
+        config["model"]["max_seq_length"] = int(config["model"]["max_seq_length"])
+        if config["model"]["max_seq_length"] < 1 or config["model"]["max_seq_length"] > 4096:
             raise ValueError("max_seq_length must be between 1 and 4096")
 
         # Validate training config
-        batch_size = int(config["training"]["batch_size"])
-        if batch_size < 1:
+        config["training"]["batch_size"] = int(config["training"]["batch_size"])
+        if config["training"]["batch_size"] < 1:
             raise ValueError("batch_size must be positive")
 
-        learning_rate = float(config["training"]["learning_rate"])
-        if learning_rate <= 0:
+        config["training"]["learning_rate"] = float(config["training"]["learning_rate"])
+        if config["training"]["learning_rate"] <= 0:
             raise ValueError("learning_rate must be positive")
 
-        num_epochs = int(config["training"]["num_epochs"])
-        if num_epochs < 1:
+        config["training"]["num_epochs"] = int(config["training"]["num_epochs"])
+        if config["training"]["num_epochs"] < 1:
             raise ValueError("num_epochs must be positive")
 
-        # Validate data split ratios
-        train_ratio = float(config["data"]["train_ratio"])
-        val_ratio = float(config["data"]["val_ratio"])
+        config["training"]["weight_decay"] = float(config["training"]["weight_decay"])
+        config["training"]["warmup_steps"] = int(config["training"]["warmup_steps"])
 
-        if not (0 < train_ratio < 1):
+        # Validate data split ratios
+        config["data"]["train_ratio"] = float(config["data"]["train_ratio"])
+        config["data"]["val_ratio"] = float(config["data"]["val_ratio"])
+
+        if not (0 < config["data"]["train_ratio"] < 1):
             raise ValueError("train_ratio must be between 0 and 1")
 
-        if not (0 < val_ratio < 1):
+        if not (0 < config["data"]["val_ratio"] < 1):
             raise ValueError("val_ratio must be between 0 and 1")
 
-        if train_ratio + val_ratio >= 1:
+        if config["data"]["train_ratio"] + config["data"]["val_ratio"] >= 1:
             raise ValueError("train_ratio + val_ratio must be less than 1")
+
+        # Validate and convert other data config values
+        config["data"]["random_seed"] = int(config["data"]["random_seed"])
+        config["data"]["num_workers"] = int(config["data"]["num_workers"])
+        config["data"]["pin_memory"] = bool(config["data"]["pin_memory"])
 
         # Validate paths exist
         for path_key, path_value in config["paths"].items():

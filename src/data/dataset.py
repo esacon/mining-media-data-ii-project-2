@@ -67,8 +67,19 @@ class CriticalErrorDataset(Dataset):
         loader = WMT21DataLoader()
 
         if data_path.endswith(".tsv"):
+            # Check if it's a combined training file (has 6 columns)
+            if "combined_train" in data_path:
+                # Handle combined training files with format: ID source target scores binary_label language_pair
+                df = pd.read_csv(
+                    data_path, sep="\t", header=None, 
+                    names=["id", "source", "target", "scores", "binary_label", "language_pair"]
+                )
+                # Rename binary_label to label for consistency
+                df = df.rename(columns={"binary_label": "label"})
+                return df
+            
             # Check if it's a test file (no labels) or train/dev file (with labels)
-            if "test_blind" in data_path:
+            elif "test_blind" in data_path:
                 df = loader.load_test_data(data_path)
                 # Add dummy labels for test data
                 df["label"] = 0  # Will be ignored during inference
@@ -123,7 +134,12 @@ class CriticalErrorDataset(Dataset):
         # Get text inputs
         source_text = str(row["source"])
         target_text = str(row["target"])
-        label = int(row["label"])
+        
+        # Ensure label is converted to integer
+        try:
+            label = int(float(row["label"]))  # Handle both int and float strings
+        except (ValueError, TypeError):
+            label = 0  # Default to 0 if conversion fails
 
         # Combine source and target with [SEP] token
         # Format: [CLS] source [SEP] target [SEP]

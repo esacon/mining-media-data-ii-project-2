@@ -83,3 +83,11 @@ logs/
 # Results and outputs
 *.pkl
 *.joblib
+*.pt
+*.pth
+*.pkl
+*.joblib
+*.pt
+*.pth
+*.pkl
+*.joblib
