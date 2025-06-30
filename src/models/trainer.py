@@ -284,7 +284,7 @@ class Trainer:
         accuracy = accuracy_score(all_labels, all_predictions)
         mcc = matthews_corrcoef(all_labels, all_predictions)
         precision, recall, f1, _ = precision_recall_fscore_support(
-            all_labels, all_predictions, average="binary"
+            all_labels, all_predictions, average="binary", zero_division=0
         )
         auc_roc = roc_auc_score(all_labels, all_probabilities)
 

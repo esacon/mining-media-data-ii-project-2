@@ -53,7 +53,8 @@ project-2/
 │
 ├── scripts/                       # Command-line scripts
 │   ├── run_pipeline.py           # Main CLI entry point
-│   └── setup_dev.sh              # Development environment setup
+│   ├── setup_dev.sh              # Development environment setup
+│   └── test_all_languages.sh     # Multi-language training script
 │
 ├── logs/                         # Training and execution logs
 │   └── (generated during runtime)

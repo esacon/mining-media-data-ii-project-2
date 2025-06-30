@@ -19,7 +19,7 @@ RED=\033[31m
 RESET=\033[0m
 BOLD=\033[1m
 
-.PHONY: help install train evaluate predict analyze debug-train debug-evaluate debug-predict debug-experiment status clean
+.PHONY: help install train evaluate predict analyze debug-train debug-evaluate debug-predict debug-experiment status clean check-performance format lint
 
 help:
 	@echo "$(BOLD)Critical Error Detection$(RESET)"
@@ -41,6 +41,7 @@ help:
 	@echo "  $(BLUE)install$(RESET)        - Install dependencies and pre-commit hooks"
 	@echo "  $(BLUE)clean$(RESET)          - Clean up generated files and caches"
 	@echo "  $(BLUE)status$(RESET)         - Show project status"
+	@echo "  $(BLUE)check-performance$(RESET) - Analyze model performance and metrics"
 	@echo "  $(BLUE)format$(RESET)         - Format code with black and isort"
 	@echo "  $(BLUE)lint$(RESET)           - Run linting with flake8"
 	@echo "  $(BLUE)all$(RESET)            - Run clean, format, and lint"
@@ -198,5 +199,10 @@ lint:
 	@echo "$(BOLD)Running linting...$(RESET)"
 	flake8 --max-line-length=88 --extend-ignore=E203,W503 $(PYTHON_SOURCE_DIRS)
 	@echo "$(GREEN)Linting completed$(RESET)"
+
+check-performance:
+	@echo "$(BOLD)Analyzing model performance...$(RESET)"
+	pipenv run python scripts/check_model_performance.py
+	@echo "$(GREEN)Performance analysis completed$(RESET)"
 
 all: clean format lint

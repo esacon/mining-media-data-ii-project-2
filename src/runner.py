@@ -362,7 +362,7 @@ class Runner:
         accuracy = accuracy_score(true_labels, predictions)
         mcc = matthews_corrcoef(true_labels, predictions)
         precision, recall, f1, _ = precision_recall_fscore_support(
-            true_labels, predictions, average="binary"
+            true_labels, predictions, average="binary", zero_division=0
         )
         auc_roc = roc_auc_score(true_labels, probabilities)
 

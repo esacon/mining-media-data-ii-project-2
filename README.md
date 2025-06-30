@@ -86,6 +86,27 @@ make debug-experiment LANG=en-de
 make status
 ```
 
+### 🌍 Training All Languages
+
+Use the provided script to train and test all language pairs:
+
+```bash
+# Quick test everything works (5-10 minutes)
+./scripts/test_all_languages.sh debug
+
+# Train all languages (several hours)
+./scripts/test_all_languages.sh train-all
+
+# Complete pipeline for all languages
+./scripts/test_all_languages.sh full
+
+# Evaluate all trained models
+./scripts/test_all_languages.sh evaluate-all
+
+# Generate predictions for all languages
+./scripts/test_all_languages.sh predict-all
+```
+
 ## ⚙️ Configuration
 
 Edit `config.yaml` for model and training settings:
