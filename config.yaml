@@ -34,3 +34,10 @@ paths:
 logging:
   level: "INFO"
   log_interval: 100
+
+# Quick Test Configuration (for development/testing)
+quick_test:
+  sample_size: 100
+  batch_size: 8
+  num_epochs: 1
+  learning_rate: 5.0e-5

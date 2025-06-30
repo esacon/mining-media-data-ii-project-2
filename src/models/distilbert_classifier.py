@@ -1,10 +1,3 @@
-"""
-DistilBERT-based classifier for WMT21 Task 3 Critical Error Detection.
-
-This module implements a fine-tuned DistilBERT model for binary classification
-of critical translation errors.
-"""
-
 from typing import Dict, Optional, Tuple
 
 import torch
@@ -100,7 +93,7 @@ class DistilBERTClassifier(DistilBertPreTrainedModel):
 
     def get_model_size(self) -> Dict[str, int]:
         """
-        Calculate model size information for WMT21 submission.
+        Calculate model size information for submission.
 
         Returns:
             Dictionary with model size metrics

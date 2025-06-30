@@ -1,73 +1,19 @@
-"""
-Configuration loading and validation utilities.
-"""
-
 import logging
 from pathlib import Path
-from typing import Literal, Optional, TypedDict, Union
+from typing import Optional, Union
 
 import yaml
 
-from .logging_utils import get_logger
-
-
-class ModelConfig(TypedDict):
-    """Represents the 'model' section of the configuration."""
-
-    name: str
-    max_seq_length: int
-    num_labels: int
-
-
-class TrainingConfig(TypedDict):
-    """Represents the 'training' section of the configuration."""
-
-    batch_size: int
-    learning_rate: float
-    num_epochs: int
-    weight_decay: float
-    warmup_steps: int
-    device: Literal["cpu", "cuda", "auto"]
-    mixed_precision: bool
-    gradient_accumulation_steps: int
-
-
-class DataConfig(TypedDict):
-    """Represents the 'data' section of the configuration."""
-
-    train_data_dir: str
-    gold_labels_dir: str
-    train_ratio: float
-    val_ratio: float
-    random_seed: int
-    num_workers: int
-    pin_memory: bool
-
-
-class PathsConfig(TypedDict):
-    """Represents the 'paths' section of the configuration."""
-
-    checkpoints_dir: str
-    logs_dir: str
-    results_dir: str
-
-
-class LoggingConfig(TypedDict):
-    """Represents the 'logging' section of the configuration."""
-
-    level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-    log_interval: int
-    save_interval: int
-
-
-class AppConfig(TypedDict):
-    """Represents the complete application configuration."""
-
-    model: ModelConfig
-    training: TrainingConfig
-    data: DataConfig
-    paths: PathsConfig
-    logging: LoggingConfig
+from src.types.types import (
+    AppConfig,
+    DataConfig,
+    LoggingConfig,
+    ModelConfig,
+    PathsConfig,
+    QuickTestConfig,
+    TrainingConfig,
+)
+from src.utils.logging_utils import get_logger
 
 
 class ConfigLoader:
@@ -95,14 +41,11 @@ class ConfigLoader:
         if not config_path.exists():
             raise FileNotFoundError(f"Config file not found: {config_path}")
 
-        self.logger.info(f"Loading configuration from: {config_path}")
-
         with open(config_path, "r", encoding="utf-8") as f:
             raw_config = yaml.safe_load(f)
 
         config = self._parse_and_validate_config(raw_config)
         self._config = config
-        self.logger.info("Configuration loaded successfully.")
 
         return config
 
@@ -129,6 +72,9 @@ class ConfigLoader:
         self._validate_data_config(config["data"])
         self._validate_paths_config(config["paths"])
         self._validate_logging_config(config["logging"])
+
+        if "quick_test" in config:
+            self._validate_quick_test_config(config["quick_test"])
 
         return config
 
@@ -175,6 +121,12 @@ class ConfigLoader:
                 level="INFO",
                 log_interval=100,
                 save_interval=1000,
+            ),
+            quick_test=QuickTestConfig(
+                sample_size=100,
+                batch_size=8,
+                num_epochs=1,
+                learning_rate=5e-5,
             ),
         )
 
@@ -246,7 +198,8 @@ class ConfigLoader:
         data_config["pin_memory"] = bool(data_config["pin_memory"])
 
     def _validate_paths_config(self, paths_config: PathsConfig):
-        """Validates the 'paths' section of the configuration and creates directories."""
+        """Validates the 'paths' section of the configuration and creates
+        directories."""
         for path_key, path_value in paths_config.items():
             if not path_key.endswith("_dir"):
                 continue
@@ -257,7 +210,6 @@ class ConfigLoader:
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if logging_config["level"].upper() not in valid_levels:
             raise ValueError(f"logging.level must be one of {valid_levels}.")
-        # Normalize to uppercase
         logging_config["level"] = logging_config["level"].upper()
 
         logging_config["log_interval"] = int(logging_config["log_interval"])
@@ -267,6 +219,24 @@ class ConfigLoader:
         logging_config["save_interval"] = int(logging_config["save_interval"])
         if logging_config["save_interval"] < 1:
             raise ValueError("logging.save_interval must be positive.")
+
+    def _validate_quick_test_config(self, quick_test_config: QuickTestConfig):
+        """Validates the 'quick_test' section of the configuration."""
+        quick_test_config["sample_size"] = int(quick_test_config["sample_size"])
+        if quick_test_config["sample_size"] < 1:
+            raise ValueError("quick_test.sample_size must be positive.")
+
+        quick_test_config["batch_size"] = int(quick_test_config["batch_size"])
+        if quick_test_config["batch_size"] < 1:
+            raise ValueError("quick_test.batch_size must be positive.")
+
+        quick_test_config["num_epochs"] = int(quick_test_config["num_epochs"])
+        if quick_test_config["num_epochs"] < 1:
+            raise ValueError("quick_test.num_epochs must be positive.")
+
+        quick_test_config["learning_rate"] = float(quick_test_config["learning_rate"])
+        if quick_test_config["learning_rate"] <= 0:
+            raise ValueError("quick_test.learning_rate must be positive.")
 
     def get_config(self) -> AppConfig:
         """
@@ -293,8 +263,6 @@ class ConfigLoader:
         output_path = Path(output_path)
         with open(output_path, "w", encoding="utf-8") as f:
             yaml.dump(config, f, default_flow_style=False, indent=2)
-
-        self.logger.info(f"Configuration saved to: {output_path}")
 
 
 def load_config(

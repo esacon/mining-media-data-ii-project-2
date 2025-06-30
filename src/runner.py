@@ -1,24 +1,52 @@
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 from transformers import DistilBertConfig, DistilBertModel, DistilBertTokenizer
 
-from src.data.data_loader import WMT21DataLoader
-from src.data.dataset import CriticalErrorDataset
-from src.models.distilbert_classifier import DistilBERTClassifier
-from src.models.trainer import Trainer
-from src.utils.config import load_config
-from src.utils.logging_utils import get_logger, setup_logger
+from src.data import CriticalErrorDataset, CustomDataLoader
+from src.models import DistilBERTClassifier, EvaluationFormatter, Trainer
+from src.types import (
+    EvaluationResults,
+    ExperimentResults,
+    LanguagePairAnalysis,
+    PredictionResults,
+    TrainingResults,
+)
+from src.utils import (
+    DatasetFileLocator,
+    LanguagePairMapper,
+    get_logger,
+    load_config,
+    setup_logger,
+)
 
 
 class Runner:
-    def __init__(self, config_path: str, device: str = "auto"):
-        self.config_path = config_path
-        self.device_str = device
-        self.config = load_config(config_path)
+    """Manages the end-to-end workflow for training, evaluation, prediction, and
+    data analysis."""
+
+    def __init__(
+        self, config_path: str, device: str = "auto", quick_test: bool = False
+    ):
+        """
+        Initializes the Runner with configuration and sets up the device and logger.
+
+        Args:
+            config_path: Path to the configuration file.
+            device: Device to use for computations ('auto', 'cuda', 'mps', 'cpu').
+            quick_test: If True, applies quick test settings for faster training.
+        """
+        self.config_path: str = config_path
+        self.device_str: str = device
+        self.quick_test: bool = quick_test
+        self.config: Dict[str, Dict[str, str]] = load_config(config_path)
+
+        if quick_test and "quick_test" in self.config:
+            self._apply_quick_test_settings()
+
         setup_logger(
             name="Runner",
             level_str=self.config["logging"]["level"],
@@ -26,112 +54,226 @@ class Runner:
             log_to_console=True,
         )
         self.logger = get_logger(__name__)
-        self.device = self._setup_device(device)
+        self.device: torch.device = self._setup_device(device)
         self._set_random_seeds()
-        self.tokenizer = None
-        self.model = None
-        self.trainer = None
+        self.tokenizer: Optional[DistilBertTokenizer] = None
+        self.model: Optional[DistilBERTClassifier] = None
+        self.trainer: Optional[Trainer] = None
 
     def _setup_device(self, device: str) -> torch.device:
+        """
+        Determines and returns the appropriate torch.device.
+
+        Args:
+            device: Preferred device string ('auto', 'cuda', 'mps', 'cpu').
+
+        Returns:
+            The torch.device instance.
+        """
         if device == "auto":
             if torch.cuda.is_available():
                 return torch.device("cuda")
-            elif torch.backends.mps.is_available():
+            if torch.backends.mps.is_available():
                 return torch.device("mps")
-            else:
-                return torch.device("cpu")
-        else:
-            return torch.device(device)
+            return torch.device("cpu")
+        return torch.device(device)
 
     def _set_random_seeds(self):
-        seed = self.config["data"]["random_seed"]
+        """Sets random seeds for reproducibility across torch and CUDA."""
+        seed: int = self.config["data"]["random_seed"]
         torch.manual_seed(seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(seed)
 
+    def _apply_quick_test_settings(self):
+        """Applies quick test configuration settings for faster training/testing."""
+        quick_config = self.config["quick_test"]
+
+        self.config["training"]["batch_size"] = quick_config.get(
+            "batch_size", self.config["training"]["batch_size"]
+        )
+        self.config["training"]["num_epochs"] = quick_config.get(
+            "num_epochs", self.config["training"]["num_epochs"]
+        )
+        self.config["training"]["learning_rate"] = quick_config.get(
+            "learning_rate", self.config["training"]["learning_rate"]
+        )
+
+        self.default_sample_size = quick_config.get("sample_size", 100)
+
     def _load_tokenizer(self):
+        """Loads the DistilBertTokenizer if not already loaded."""
         if self.tokenizer is None:
-            model_name = self.config["model"]["name"]
+            model_name: str = self.config["model"]["name"]
             self.tokenizer = DistilBertTokenizer.from_pretrained(model_name)
 
     def _initialize_model(self, from_pretrained: bool = True):
-        """Initialize the model with proper configuration."""
-        model_name = self.config["model"]["name"]
-        num_labels = self.config["model"]["num_labels"]
+        """
+        Initializes the DistilBERTClassifier model.
 
-        if from_pretrained:
-            # Load the configuration from the pre-trained model
-            config = DistilBertConfig.from_pretrained(model_name)
-            # Set our specific parameters
-            config.num_labels = num_labels
+        Args:
+            from_pretrained: If True, loads pre-trained DistilBERT weights and
+                             initializes a new classification head. If False,
+                             initializes from scratch.
+        """
+        model_name: str = self.config["model"]["name"]
+        num_labels: int = self.config["model"]["num_labels"]
 
-            # Create our custom classifier with the configuration
-            self.model = DistilBERTClassifier(config)
-
-            # Load only the DistilBERT weights from the pre-trained model
-            pretrained_distilbert = DistilBertModel.from_pretrained(model_name)
-
-            # Copy the DistilBERT weights to our model
-            self.model.distilbert.load_state_dict(pretrained_distilbert.state_dict())
-
-            self.logger.info(
-                f"✅ Loaded pre-trained DistilBERT weights from {model_name}"
-            )
-            self.logger.info(
-                f"🔧 Initialized new classification head for {num_labels} labels"
-            )
-        else:
-            # Create from scratch
-            config = DistilBertConfig.from_pretrained(model_name)
-            config.num_labels = num_labels
-            self.model = DistilBERTClassifier(config)
-
-        self.model.to(self.device)
-
-    def _load_model_from_checkpoint(self, model_path: str):
-        """Load model from a saved checkpoint."""
-        checkpoint = torch.load(model_path, map_location=self.device)
-
-        if "config" in checkpoint:
-            model_config = checkpoint["config"]
-            num_labels = model_config["model"]["num_labels"]
-            model_name = model_config["model"]["name"]
-        else:
-            model_name = self.config["model"]["name"]
-            num_labels = self.config["model"]["num_labels"]
-
-        # Create model with proper configuration
         config = DistilBertConfig.from_pretrained(model_name)
         config.num_labels = num_labels
         self.model = DistilBERTClassifier(config)
 
-        # Load the saved state
+        if from_pretrained:
+            pretrained_distilbert = DistilBertModel.from_pretrained(model_name)
+            self.model.distilbert.load_state_dict(pretrained_distilbert.state_dict())
+
+        self.model.to(self.device)
+
+    def _load_model_from_checkpoint(self, model_path: str):
+        """
+        Loads the model and tokenizer from a saved checkpoint.
+
+        Args:
+            model_path: Path to the model checkpoint file.
+        """
+        checkpoint: Dict[str, torch.Tensor] = torch.load(
+            model_path, map_location=self.device
+        )
+
+        model_config: Dict[str, int] = checkpoint.get("config", self.config)
+        num_labels: int = model_config["model"]["num_labels"]
+        model_name: str = model_config["model"]["name"]
+
+        config = DistilBertConfig.from_pretrained(model_name)
+        config.num_labels = num_labels
+        self.model = DistilBERTClassifier(config)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.to(self.device)
 
-        if "tokenizer" in checkpoint:
-            self.tokenizer = checkpoint["tokenizer"]
-        else:
+        self.tokenizer = checkpoint.get("tokenizer")
+        if self.tokenizer is None:
             self._load_tokenizer()
 
-        self.logger.info(f"✅ Loaded model from checkpoint: {model_path}")
+    def _get_dataloader_params(self) -> Dict[str, int | bool]:
+        """
+        Retrieves DataLoader parameters from the configuration.
 
-    def _get_dataloader_params(self) -> Dict[str, Any]:
+        Returns:
+            A dictionary containing DataLoader parameters.
+        """
         return {
             "batch_size": self.config["training"]["batch_size"],
             "num_workers": self.config["data"]["num_workers"],
             "pin_memory": self.config["data"]["pin_memory"],
         }
 
+    def _create_data_loaders(
+        self, data_path: str, **dataset_kwargs
+    ) -> Tuple[DataLoader, DataLoader]:
+        """
+        Creates training and validation DataLoaders.
+
+        Args:
+            data_path: Path to the dataset.
+            **dataset_kwargs: Additional arguments for dataset creation
+                               (e.g., language_pair, sample_size).
+
+        Returns:
+            A tuple containing the training DataLoader and validation DataLoader.
+        """
+        self._load_tokenizer()
+        full_dataset = CriticalErrorDataset(
+            data_path,
+            self.tokenizer,
+            max_length=self.config["model"]["max_seq_length"],
+            **dataset_kwargs,
+        )
+
+        train_ratio: float = self.config["data"]["train_ratio"]
+        val_ratio: float = self.config["data"]["val_ratio"]
+        total_size: int = len(full_dataset)
+        train_size: int = int(train_ratio * total_size)
+        val_size: int = int(val_ratio * total_size)
+        test_size: int = total_size - train_size - val_size
+
+        generator = torch.Generator().manual_seed(self.config["data"]["random_seed"])
+        train_dataset, val_dataset, _ = random_split(
+            full_dataset, [train_size, val_size, test_size], generator=generator
+        )
+
+        dl_params: Dict[str, int | bool] = self._get_dataloader_params()
+        train_loader = DataLoader(train_dataset, shuffle=True, **dl_params)
+        val_loader = DataLoader(val_dataset, shuffle=False, **dl_params)
+        return train_loader, val_loader
+
+    def _create_test_data_loader(self, data_path: str, **dataset_kwargs) -> DataLoader:
+        """
+        Creates a test DataLoader.
+
+        Args:
+            data_path: Path to the dataset.
+            **dataset_kwargs: Additional arguments for dataset creation
+                               (e.g., language_pair, sample_size).
+
+        Returns:
+            The test DataLoader.
+        """
+        self._load_tokenizer()
+        test_dataset = CriticalErrorDataset(
+            data_path=data_path,
+            tokenizer=self.tokenizer,
+            max_length=self.config["model"]["max_seq_length"],
+            **dataset_kwargs,
+        )
+        dl_params: Dict[str, int | bool] = self._get_dataloader_params()
+        test_loader = DataLoader(test_dataset, shuffle=False, **dl_params)
+        return test_loader
+
+    def _save_results(
+        self, results: Dict[str, Union[str, int, float, List, Dict]], output_path: Path
+    ):
+        """
+        Saves results to a JSON file.
+
+        Args:
+            results: Dictionary of results to save.
+            output_path: Path where the results JSON file will be saved.
+        """
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=2, default=str)
+
     def train(
         self,
         data_path: str,
-        language_pair: Optional[str] = None,
         save_results: bool = True,
-    ) -> Dict[str, Any]:
+        **dataset_kwargs,
+    ) -> TrainingResults:
+        """
+        Initiates the training process for the model.
+
+        Args:
+            data_path: Path to the dataset for training and validation.
+            save_results: Whether to save the training results to a file.
+            **dataset_kwargs: Additional arguments for dataset creation
+                               (e.g., language_pair, sample_size).
+
+        Returns:
+            A dictionary containing the training results.
+        """
+        if (
+            self.quick_test
+            and hasattr(self, "default_sample_size")
+            and "sample_size" not in dataset_kwargs
+        ):
+            dataset_kwargs["sample_size"] = self.default_sample_size
+
         self._load_tokenizer()
         self._initialize_model(from_pretrained=True)
-        train_loader, val_loader = self._create_data_loaders(data_path, language_pair)
+        train_loader, val_loader = self._create_data_loaders(
+            data_path, **dataset_kwargs
+        )
+
         self.trainer = Trainer(
             model=self.model,
             tokenizer=self.tokenizer,
@@ -139,36 +281,61 @@ class Runner:
             device=self.device,
             logger=self.logger,
         )
-        save_dir = self.config["paths"]["checkpoints_dir"]
-        results = self.trainer.train(train_loader, val_loader, save_dir, language_pair)
+
+        save_dir: str = self.config["paths"]["checkpoints_dir"]
+        results: TrainingResults = self.trainer.train(
+            train_loader, val_loader, save_dir, dataset_kwargs.get("language_pair")
+        )
+
         if save_results:
-            # Add metadata to results
-            results["language_pair"] = language_pair
-            results["timestamp"] = results.get("timestamp", "unknown")
+            from datetime import datetime
 
-            # Save with unique filename if language pair is specified
-            if language_pair:
-                from datetime import datetime
-
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"training_results_{timestamp}_{language_pair}.json"
-                output_path = Path(self.config["paths"]["results_dir"]) / filename
-            else:
-                output_path = (
-                    Path(self.config["paths"]["results_dir"]) / "training_results.json"
-                )
+            results.update(dataset_kwargs)
+            timestamp: str = datetime.now().strftime("%Y%m%d_%H%M%S")
+            language_pair = dataset_kwargs.get("language_pair")
+            filename: str = (
+                f"training_results_{timestamp}_{language_pair}.json"
+                if language_pair
+                else f"training_results_{timestamp}.json"
+            )
+            output_path: Path = Path(self.config["paths"]["results_dir"]) / filename
             self._save_results(results, output_path)
+
         return results
 
     def evaluate(
         self,
         model_path: str,
         data_path: str,
-        language_pair: Optional[str] = None,
         save_results: bool = True,
-    ) -> Dict[str, Any]:
+        **dataset_kwargs,
+    ) -> EvaluationResults:
+        """
+        Evaluates the model on a given dataset.
+
+        Args:
+            model_path: Path to the pre-trained model checkpoint.
+            data_path: Path to the dataset for evaluation.
+            save_results: Whether to save the evaluation results to a file.
+            **dataset_kwargs: Additional arguments for dataset creation
+                               (e.g., language_pair, sample_size).
+
+        Returns:
+            A dictionary containing the evaluation results, including predictions
+            and probabilities.
+        """
+        if (
+            self.quick_test
+            and hasattr(self, "default_sample_size")
+            and "sample_size" not in dataset_kwargs
+        ):
+            dataset_kwargs["sample_size"] = self.default_sample_size
+
         self._load_model_from_checkpoint(model_path)
-        test_loader = self._create_test_data_loader(data_path, language_pair)
+        test_loader: DataLoader = self._create_test_data_loader(
+            data_path, **dataset_kwargs
+        )
+
         self.trainer = Trainer(
             model=self.model,
             tokenizer=self.tokenizer,
@@ -176,26 +343,85 @@ class Runner:
             device=self.device,
             logger=self.logger,
         )
-        results = self.trainer.evaluate(test_loader)
-        predictions, probabilities = self.trainer.predict(test_loader)
-        results["predictions"] = predictions
-        results["probabilities"] = probabilities
+
+        predictions: List[int]
+        probabilities: List[float]
+        predictions, probabilities, _ = self.trainer.predict(test_loader)
+
+        true_labels = []
+        for batch in test_loader:
+            true_labels.extend(batch["labels"].cpu().numpy())
+
+        from sklearn.metrics import (
+            accuracy_score,
+            matthews_corrcoef,
+            precision_recall_fscore_support,
+            roc_auc_score,
+        )
+
+        accuracy = accuracy_score(true_labels, predictions)
+        mcc = matthews_corrcoef(true_labels, predictions)
+        precision, recall, f1, _ = precision_recall_fscore_support(
+            true_labels, predictions, average="binary"
+        )
+        auc_roc = roc_auc_score(true_labels, probabilities)
+
+        results: EvaluationResults = {
+            "accuracy": accuracy,
+            "mcc": mcc,
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "auc_roc": auc_roc,
+            "predictions": predictions,
+            "probabilities": probabilities,
+        }
+        results.update(dataset_kwargs)
+
         if save_results:
-            output_path = (
+            output_path: Path = (
                 Path(self.config["paths"]["results_dir"]) / "evaluation_results.json"
             )
             self._save_results(results, output_path)
+
         return results
 
     def predict(
         self,
         model_path: str,
         data_path: str,
-        language_pair: Optional[str] = None,
         save_results: bool = True,
-    ) -> Tuple[List[int], List[float]]:
+        create_evaluation_format: bool = True,
+        method_name: str = "distilbert",
+        **dataset_kwargs,
+    ) -> Tuple[List[int], List[float], List[str]]:
+        """
+        Performs predictions using a trained model on new data.
+
+        Args:
+            model_path: Path to the pre-trained model checkpoint.
+            data_path: Path to the dataset for prediction.
+            save_results: Whether to save the prediction results to a file.
+            create_evaluation_format: Whether to create WMT evaluation format files.
+            method_name: Name of the method for evaluation format files.
+            **dataset_kwargs: Additional arguments for dataset creation
+                               (e.g., language_pair, sample_size).
+
+        Returns:
+            A tuple containing lists of predictions, probabilities, and test IDs.
+        """
+        if (
+            self.quick_test
+            and hasattr(self, "default_sample_size")
+            and "sample_size" not in dataset_kwargs
+        ):
+            dataset_kwargs["sample_size"] = self.default_sample_size
+
         self._load_model_from_checkpoint(model_path)
-        test_loader = self._create_test_data_loader(data_path, language_pair)
+        test_loader: DataLoader = self._create_test_data_loader(
+            data_path, **dataset_kwargs
+        )
+
         self.trainer = Trainer(
             model=self.model,
             tokenizer=self.tokenizer,
@@ -203,155 +429,190 @@ class Runner:
             device=self.device,
             logger=self.logger,
         )
-        predictions, probabilities = self.trainer.predict(test_loader)
+
+        predictions: List[int]
+        probabilities: List[float]
+        test_ids: List[str]
+        predictions, probabilities, test_ids = self.trainer.predict(test_loader)
+
         if save_results:
-            results = {
+            results: PredictionResults = {
                 "predictions": predictions,
                 "probabilities": probabilities,
+                "test_ids": test_ids,
                 "data_path": data_path,
                 "model_path": model_path,
-                "language_pair": language_pair,
             }
-            output_path = (
+            results.update(dataset_kwargs)
+            output_path: Path = (
                 Path(self.config["paths"]["results_dir"]) / "prediction_results.json"
             )
             self._save_results(results, output_path)
-        return predictions, probabilities
+
+        # Create evaluation format files if requested
+        if create_evaluation_format and dataset_kwargs.get("language_pair"):
+            self._create_evaluation_format_files(
+                predictions=predictions,
+                probabilities=probabilities,
+                test_ids=test_ids,
+                language_pair=dataset_kwargs["language_pair"],
+                method_name=method_name,
+            )
+
+        return predictions, probabilities, test_ids
+
+    def _create_evaluation_format_files(
+        self,
+        predictions: List[int],
+        probabilities: List[float],
+        test_ids: List[str],
+        language_pair: str,
+        method_name: str,
+    ):
+        """
+        Create evaluation format files compatible with WMT evaluation script.
+
+        Args:
+            predictions: Binary predictions (0 or 1)
+            probabilities: Prediction probabilities for class 1
+            test_ids: Test sample IDs
+            language_pair: Language pair code (e.g., 'en-de')
+            method_name: Name of the method/system
+        """
+        model_size = self.model.get_model_size()
+
+        formatter = EvaluationFormatter(logger=self.logger)
+
+        results_dir = Path(self.config["paths"]["results_dir"])
+        results_dir.mkdir(parents=True, exist_ok=True)
+
+        eval_file_path = results_dir / f"evaluation_{language_pair}_{method_name}.tsv"
+        formatter.create_evaluation_file(
+            predictions=predictions,
+            probabilities=probabilities,
+            test_ids=test_ids,
+            language_pair=language_pair,
+            method_name=method_name,
+            disk_footprint_bytes=model_size["disk_footprint_bytes"],
+            model_parameters=model_size["total_parameters"],
+            output_path=str(eval_file_path),
+        )
+
+        metadata_path = (
+            results_dir / f"evaluation_metadata_{language_pair}_{method_name}.json"
+        )
+        formatter.create_metadata_file(
+            predictions=predictions,
+            language_pair=language_pair,
+            method_name=method_name,
+            model_info=model_size,
+            output_path=str(metadata_path),
+        )
+
+        self.logger.info(f"Created evaluation files for {language_pair}")
+        self.logger.info(f"Evaluation file: {eval_file_path}")
+        self.logger.info(f"Metadata file: {metadata_path}")
 
     def analyze_data(
         self,
         data_dir: Optional[str] = None,
-        language_pairs: Optional[List[str]] = None,
+        groups: Optional[List[str]] = None,
         save_results: bool = True,
-    ) -> Dict[str, Any]:
-        if data_dir is None:
-            data_dir = self.config["data"]["train_data_dir"]
-        if language_pairs is None:
-            language_pairs = ["en-de", "en-ja", "en-zh", "en-cs"]
-        loader = WMT21DataLoader()
-        results = {}
-        for language_pair in language_pairs:
-            analysis = self._analyze_language_pair(loader, data_dir, language_pair)
-            results[language_pair] = analysis
+    ) -> Dict[str, LanguagePairAnalysis]:
+        """
+        Analyzes the dataset for specified groups.
+
+        Args:
+            data_dir: Directory containing the data files. Defaults to the
+                      'train_data_dir' from the configuration.
+            groups: List of groups to analyze. If None, uses default groups.
+            save_results: Whether to save the analysis results to a file.
+
+        Returns:
+            A dictionary containing the data analysis results for each group.
+        """
+        data_to_analyze_dir: str = (
+            data_dir if data_dir is not None else self.config["data"]["train_data_dir"]
+        )
+
+        if groups is None:
+            mapper = LanguagePairMapper()
+            file_locator = DatasetFileLocator(mapper)
+            groups_to_analyze = file_locator.find_available_language_pairs(
+                data_to_analyze_dir
+            )
+        else:
+            groups_to_analyze = groups
+
+        loader = CustomDataLoader()
+        results: Dict[str, LanguagePairAnalysis] = {}
+
+        for group in groups_to_analyze:
+            analysis = self._analyze_group(loader, data_to_analyze_dir, group)
+            results[group] = analysis
+
         if save_results:
-            output_path = (
+            output_path: Path = (
                 Path(self.config["paths"]["results_dir"]) / "data_analysis_results.json"
             )
             self._save_results(results, output_path)
+
         return results
 
-    def run_full_experiment(
-        self, data_path: str, language_pair: Optional[str] = None
-    ) -> Dict[str, Any]:
-        training_results = self.train(data_path, language_pair, save_results=False)
-        checkpoints_dir = Path(self.config["paths"]["checkpoints_dir"])
-        best_model_path = checkpoints_dir / "best_model.pt"
-        if not best_model_path.exists():
-            checkpoints = list(checkpoints_dir.glob("*.pth"))
-            if checkpoints:
-                best_model_path = checkpoints[0]
-            else:
-                raise FileNotFoundError("No model checkpoints found after training")
-        evaluation_results = self.evaluate(
-            str(best_model_path), data_path, language_pair, save_results=False
-        )
-        experiment_results = {
-            "training": training_results,
-            "evaluation": evaluation_results,
-            "model_path": str(best_model_path),
-            "data_path": data_path,
-            "language_pair": language_pair,
+    def _analyze_group(
+        self, loader: CustomDataLoader, data_dir: str, group: str
+    ) -> LanguagePairAnalysis:
+        """
+        Analyzes data for a specific group.
+
+        Args:
+            loader: Data loader instance.
+            data_dir: Directory containing the data files.
+            group: The group to analyze (e.g., "en-de").
+
+        Returns:
+            Analysis results for the group.
+        """
+        mapper = LanguagePairMapper()
+        file_locator = DatasetFileLocator(mapper)
+
+        file_paths = file_locator.get_file_paths(data_dir, group)
+
+        analysis: LanguagePairAnalysis = {
+            "language_pair": group,
+            "files_found": {split: str(path) for split, path in file_paths.items()},
         }
-        output_path = (
-            Path(self.config["paths"]["results_dir"]) / "experiment_results.json"
-        )
-        self._save_results(experiment_results, output_path)
-        return experiment_results
 
-    def _save_results(self, results: Dict[str, Any], output_path: Path):
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=2, default=str)
-
-    def _create_data_loaders(
-        self, data_path: str, language_pair: Optional[str] = None
-    ) -> Tuple[DataLoader, DataLoader]:
-        self._load_tokenizer()
-        full_dataset = CriticalErrorDataset(
-            data_path, self.tokenizer, language_pair=language_pair
-        )
-        train_ratio = self.config["data"]["train_ratio"]
-        val_ratio = self.config["data"]["val_ratio"]
-        total_size = len(full_dataset)
-        train_size = int(train_ratio * total_size)
-        val_size = int(val_ratio * total_size)
-        test_size = total_size - train_size - val_size
-        generator = torch.Generator().manual_seed(self.config["data"]["random_seed"])
-        train_dataset, val_dataset, _ = torch.utils.data.random_split(
-            full_dataset, [train_size, val_size, test_size], generator=generator
-        )
-        dl_params = self._get_dataloader_params()
-        train_loader = DataLoader(train_dataset, shuffle=True, **dl_params)
-        val_loader = DataLoader(val_dataset, shuffle=False, **dl_params)
-        return train_loader, val_loader
-
-    def _create_test_data_loader(
-        self, data_path: str, language_pair: Optional[str] = None
-    ) -> DataLoader:
-        self._load_tokenizer()
-        test_dataset = CriticalErrorDataset(
-            data_path=data_path,
-            tokenizer=self.tokenizer,
-            max_length=self.config["model"]["max_seq_length"],
-            language_pair=language_pair,
-        )
-        dl_params = self._get_dataloader_params()
-        test_loader = DataLoader(test_dataset, shuffle=False, **dl_params)
-        return test_loader
-
-    def _analyze_language_pair(
-        self, loader: WMT21DataLoader, data_dir: str, language_pair: str
-    ) -> Dict[str, Any]:
-        prefix_map = {
-            "en-de": "ende",
-            "en-ja": "enja",
-            "en-zh": "enzh",
-            "en-cs": "encs",
-        }
-        prefix = prefix_map.get(language_pair, "ende")
-        data_path = Path(data_dir)
-        train_file = data_path / f"{prefix}_majority_train.tsv"
-        dev_file = data_path / f"{prefix}_majority_dev.tsv"
-        test_file = data_path / f"{prefix}_majority_test_blind.tsv"
-        analysis = {"language_pair": language_pair, "files_found": {}}
-        if train_file.exists():
-            train_df = loader.load_train_dev_data(str(train_file))
+        if "train" in file_paths:
+            train_df = loader.load_train_dev_data(str(file_paths["train"]))
             analysis["train"] = {
                 "samples": len(train_df),
                 "critical_errors": int(train_df["binary_label"].sum()),
                 "error_rate": float(train_df["binary_label"].mean()),
                 "no_errors": int((train_df["binary_label"] == 0).sum()),
             }
-            analysis["files_found"]["train"] = str(train_file)
-        if dev_file.exists():
-            dev_df = loader.load_train_dev_data(str(dev_file))
+
+        if "dev" in file_paths:
+            dev_df = loader.load_train_dev_data(str(file_paths["dev"]))
             analysis["dev"] = {
                 "samples": len(dev_df),
                 "critical_errors": int(dev_df["binary_label"].sum()),
                 "error_rate": float(dev_df["binary_label"].mean()),
                 "no_errors": int((dev_df["binary_label"] == 0).sum()),
             }
-            analysis["files_found"]["dev"] = str(dev_file)
-        if test_file.exists():
-            test_df = loader.load_test_data(str(test_file))
+
+        if "test" in file_paths:
+            test_df = loader.load_test_data(str(file_paths["test"]))
             analysis["test"] = {
                 "samples": len(test_df),
                 "note": "Labels not available for test data",
             }
-            analysis["files_found"]["test"] = str(test_file)
+
         if "train" in analysis and "dev" in analysis:
-            total_samples = analysis["train"]["samples"] + analysis["dev"]["samples"]
-            total_errors = (
+            total_samples: int = (
+                analysis["train"]["samples"] + analysis["dev"]["samples"]
+            )
+            total_errors: int = (
                 analysis["train"]["critical_errors"]
                 + analysis["dev"]["critical_errors"]
             )
@@ -363,3 +624,51 @@ class Runner:
                 ),
             }
         return analysis
+
+    def run_full_experiment(
+        self, data_path: str, **dataset_kwargs
+    ) -> ExperimentResults:
+        """
+        Runs a full experiment including training and evaluation, saving all results.
+
+        Args:
+            data_path: Path to the dataset for training and evaluation.
+            **dataset_kwargs: Additional arguments for dataset creation
+                               (e.g., language_pair).
+
+        Returns:
+            A dictionary containing combined training and evaluation results.
+        """
+        training_results: TrainingResults = self.train(
+            data_path, save_results=False, **dataset_kwargs
+        )
+
+        best_model_path = training_results.get("best_model_path")
+
+        if not best_model_path or not Path(best_model_path).exists():
+            checkpoints_dir: Path = Path(self.config["paths"]["checkpoints_dir"])
+            checkpoints: List[Path] = list(checkpoints_dir.glob("*.pt"))
+            if checkpoints:
+                best_model_path = str(checkpoints[0])
+                self.logger.warning(f"Using fallback model: {best_model_path}")
+            else:
+                raise FileNotFoundError("No model checkpoints found after training")
+
+        evaluation_results: EvaluationResults = self.evaluate(
+            best_model_path, data_path, save_results=False, **dataset_kwargs
+        )
+
+        experiment_results: ExperimentResults = {
+            "training": training_results,
+            "evaluation": evaluation_results,
+            "model_path": best_model_path,
+            "data_path": data_path,
+        }
+        experiment_results.update(dataset_kwargs)
+
+        output_path: Path = (
+            Path(self.config["paths"]["results_dir"]) / "experiment_results.json"
+        )
+        self._save_results(experiment_results, output_path)
+
+        return experiment_results

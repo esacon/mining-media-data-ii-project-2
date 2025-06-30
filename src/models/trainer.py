@@ -1,9 +1,3 @@
-"""
-Trainer class for WMT21 Task 3 Critical Error Detection.
-
-This module implements the training and evaluation logic for the DistilBERT classifier.
-"""
-
 import json
 import logging
 import os
@@ -21,8 +15,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import DistilBertTokenizer, get_linear_schedule_with_warmup
 
-from ..utils.logging_utils import get_logger
-from .distilbert_classifier import DistilBERTClassifier
+from src.models import DistilBERTClassifier
+from src.utils import get_logger
 
 
 class Trainer:
@@ -304,7 +298,9 @@ class Trainer:
             "auc_roc": auc_roc,
         }
 
-    def predict(self, dataloader: DataLoader) -> Tuple[List[int], List[float]]:
+    def predict(
+        self, dataloader: DataLoader
+    ) -> Tuple[List[int], List[float], List[str]]:
         """
         Make predictions on data.
 
@@ -312,11 +308,12 @@ class Trainer:
             dataloader: Data loader for prediction
 
         Returns:
-            Tuple of (predictions, probabilities)
+            Tuple of (predictions, probabilities, test_ids)
         """
         self.model.eval()
         all_predictions = []
         all_probabilities = []
+        all_test_ids = []
 
         with torch.no_grad():
             for batch in tqdm(dataloader, desc="Predicting"):
@@ -331,5 +328,6 @@ class Trainer:
 
                 all_predictions.extend(predictions.cpu().numpy())
                 all_probabilities.extend(probabilities[:, 1].cpu().numpy())
+                all_test_ids.extend(batch["id"])
 
-        return all_predictions, all_probabilities
+        return all_predictions, all_probabilities, all_test_ids

@@ -4,17 +4,17 @@ Critical Error Detection package.
 A machine learning package for detecting critical errors in machine translation.
 """
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
-from .data import CriticalErrorDataset, WMT21DataLoader
-from .models import DistilBERTClassifier, Trainer
-from .utils import get_logger, load_config, setup_logger
+from src.data import CriticalErrorDataset, CustomDataLoader
+from src.models import DistilBERTClassifier, Trainer
+from src.utils import get_logger, load_config, setup_logger
 
 __all__ = [
     "DistilBERTClassifier",
     "Trainer",
     "CriticalErrorDataset",
-    "WMT21DataLoader",
+    "CustomDataLoader",
     "get_logger",
     "setup_logger",
     "load_config",

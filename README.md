@@ -1,244 +1,149 @@
-# WMT21 Task 3 - Critical Error Detection
+# Critical Error Detection
 
-A DistilBERT-based binary classifier for **WMT21 Quality Estimation Task 3: Critical Error Detection**. This model detects whether machine translation output contains critical errors that could have serious implications (health, safety, legal, financial, etc.).
+A DistilBERT-based binary classifier for detecting critical errors in machine translation output.
 
 ## 🎯 Task Overview
 
-**Task 3** detects critical translation errors in Wikipedia comments translated from English to:
-- Czech (en-cs) 
-- Japanese (en-ja)
-- Chinese (en-zh) 
-- German (en-de)
+Detects critical translation errors in English translations to:
+- **en-de**: German
+- **en-ja**: Japanese  
+- **en-zh**: Chinese
+- **en-cs**: Czech
 
-**Labels**: 
-- `ERR` = Critical error present
-- `NOT` = No critical error
-
-**Evaluation Metric**: Matthews Correlation Coefficient (MCC)
-
-## 🏗️ Project Structure
-
-```
-project-2/
-├── config.yaml                    # Configuration
-├── scripts/
-│   └── run_pipeline.py            # Main CLI script
-├── src/
-│   ├── data/                      # Data loading and processing
-│   │   ├── dataset.py            # PyTorch dataset
-│   │   └── data_loader.py        # WMT21 data loader
-│   ├── models/                   # Model components
-│   │   ├── distilbert_classifier.py  # DistilBERT model
-│   │   └── trainer.py            # Training logic
-│   └── utils/                    # Utilities
-│       ├── config.py             # Configuration loading
-│       └── logging_utils.py      # Logging
-├── data/
-│   ├── catastrophic_errors/      # WMT21 training/dev/test data
-│   └── evaluation/               # Official evaluation scripts
-└── results/                      # Training outputs and checkpoints
-```
+**Labels**: `ERR` (critical error) / `NOT` (no critical error)  
+**Metric**: Matthews Correlation Coefficient (MCC)
 
 ## 🚀 Quick Start
 
-### 1. Setup
-
+### Setup
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Or using pipenv
-pipenv install
-pipenv shell
+make install
 ```
 
-### 2. Train a Model
-
-Train on a specific language pair:
-
+### Train a Model
 ```bash
-# Train on English-Czech data
-python scripts/run_pipeline.py train \
-    --data data/catastrophic_errors \
-    --language-pair en-cs
+# Train on English-German
+make train LANG=en-de
 
-# Train on English-German data  
-python scripts/run_pipeline.py train \
-    --data data/catastrophic_errors \
-    --language-pair en-de
+# Debug training (fast, small sample)
+make debug-train LANG=en-de
 ```
 
-### 3. Evaluate a Model
-
-Evaluate your trained model:
-
+### Evaluate a Model
 ```bash
-# Evaluate on development set
-python scripts/run_pipeline.py evaluate \
-    --model results/checkpoints/final_model.pt \
-    --data data/catastrophic_errors/encs_majority_dev.tsv \
-    --language-pair en-cs
+# Evaluate trained model
+make evaluate LANG=en-de
+
+# Evaluate specific model
+make evaluate LANG=en-de MODEL=results/checkpoints/best_model_epoch_2.pt
 ```
 
-### 4. Make Predictions
-
-Generate predictions for test data:
-
+### Generate Predictions
 ```bash
-# Predict on test set
-python scripts/run_pipeline.py predict \
-    --model results/checkpoints/final_model.pt \
-    --data data/catastrophic_errors/encs_majority_test_blind.tsv \
-    --language-pair en-cs
+# Generate predictions (includes WMT evaluation format)
+make predict LANG=en-de
+
+# Skip evaluation format files
+make predict LANG=en-de NO_EVAL_FORMAT=1
+```
+
+### Analyze Data
+```bash
+# Analyze dataset statistics
+make analyze LANG=en-de
+```
+
+## 📋 Available Commands
+
+### Core Commands
+- `make train LANG=<pair>` - Train model
+- `make evaluate LANG=<pair>` - Evaluate model  
+- `make predict LANG=<pair>` - Generate predictions
+- `make analyze LANG=<pair>` - Analyze data
+
+### Debug Commands (fast testing)
+- `make debug-train LANG=<pair>` - Debug training
+- `make debug-evaluate LANG=<pair>` - Debug evaluation
+- `make debug-predict LANG=<pair>` - Debug prediction
+- `make debug-experiment LANG=<pair>` - Full debug pipeline
+
+### Development
+- `make install` - Install dependencies
+- `make format` - Format code (black + isort)
+- `make lint` - Run linting (flake8)
+- `make clean` - Clean generated files
+- `make status` - Show project status
+
+### Examples
+```bash
+# Train with limited data for testing
+make train LANG=en-de SAMPLE_SIZE=200
+
+# Full experiment workflow
+make debug-experiment LANG=en-de
+
+# Check available models
+make status
 ```
 
 ## ⚙️ Configuration
 
-Main settings in `config.yaml`:
+Edit `config.yaml` for model and training settings:
 
 ```yaml
-# Model settings
 model:
   name: "distilbert-base-multilingual-cased"
-  num_labels: 2
   max_seq_length: 512
 
-# Training settings  
 training:
   batch_size: 16
   learning_rate: 2.0e-5
   num_epochs: 3
-  weight_decay: 0.01
-
-# Data settings
-data:
-  train_ratio: 0.8
-  val_ratio: 0.1
-  random_seed: 42
 ```
 
-## 📊 Model Architecture
+## 📁 Project Structure
 
-- **Base Model**: DistilBERT Multilingual (`distilbert-base-multilingual-cased`)
-- **Task**: Binary sequence classification
-- **Input**: `[CLS] source_text [SEP] target_text [SEP]`
-- **Output**: Probability of critical error (0 = no error, 1 = critical error)
+```
+project-2/
+├── data/catastrophic_errors/     # Training data
+├── results/                      # Model outputs
+│   └── checkpoints/             # Trained models
+├── logs/                        # Training logs
+├── src/                         # Source code
+└── scripts/run_pipeline.py     # Main script
+```
 
-## 📈 Available Commands
+## 📊 Data Format
 
-### Core Operations
+**Input files**: `{lang}_majority_{split}.tsv`
+```
+ID	source	target	label
+123	Hello world	Hallo Welt	NOT
+456	Critical text	Bad translation	ERR
+```
+
+## 📈 Output Files
+
+- **Models**: `results/checkpoints/best_model_*.pt`
+- **Predictions**: `results/prediction_results.json` 
+- **WMT Format**: `results/evaluation_{lang}_{method}.tsv`
+- **Logs**: `logs/training_*.log`
+
+## 🔧 Environment Variables
+
+- `LANG=<pair>` - Language pair (en-de, en-ja, en-zh, en-cs)
+- `MODEL=<path>` - Custom model path
+- `SAMPLE_SIZE=<n>` - Limit dataset size
+- `NO_EVAL_FORMAT=1` - Skip WMT evaluation format
+
+## 🔍 Getting Help
+
 ```bash
-# Show pipeline summary
-python scripts/run_pipeline.py summary
+# Show all commands
+make help
 
-# Analyze data statistics
-python scripts/run_pipeline.py analyze \
-    --data-dir data/catastrophic_errors \
-    --language-pairs en-cs en-de
-
-# Full experiment (train + evaluate)
-python scripts/run_pipeline.py experiment \
-    --data data/catastrophic_errors \
-    --language-pair en-cs
-```
-
-### Training Options
-```bash
-# Train with custom device
-python scripts/run_pipeline.py train \
-    --data data/catastrophic_errors \
-    --language-pair en-cs \
-    --device cuda
-
-# Train with custom config
-python scripts/run_pipeline.py train \
-    --data data/catastrophic_errors \
-    --language-pair en-cs \
-    --config custom_config.yaml
-```
-
-## 💾 Data Format
-
-**Training/Dev files** (`*_majority_train.tsv`, `*_majority_dev.tsv`):
-```
-ID	source	target	[scores]	label
-9026	English text	German translation	[0,0,0]	NOT
-3255	English text	Bad translation	[1,1,1]	ERR
-```
-
-**Test files** (`*_majority_test_blind.tsv`):
-```
-ID	source	target
-1234	English text	Translation to evaluate
-```
-
-## 📊 Evaluation Metrics
-
-- **MCC**: Matthews Correlation Coefficient (primary metric)
-- **Accuracy**: Overall classification accuracy  
-- **F1**: F1-score for balanced evaluation
-- **Precision/Recall**: Per-class performance
-
-## 🔧 Dependencies
-
-Key libraries:
-- `torch`: PyTorch framework
-- `transformers`: Hugging Face transformers
-- `scikit-learn`: Evaluation metrics
-- `pandas`: Data processing
-- `pyyaml`: Configuration files
-
-## 🎯 Usage Examples
-
-### Python API
-
-```python
-from pipeline import MainPipeline
-
-# Initialize pipeline
-pipeline = MainPipeline("config.yaml", device="auto")
-
-# Train model
-results = pipeline.train("data/catastrophic_errors", "en-cs")
-
-# Evaluate model  
-metrics = pipeline.evaluate(
-    "results/checkpoints/final_model.pt",
-    "data/catastrophic_errors/encs_majority_dev.tsv", 
-    "en-cs"
-)
-
-# Make predictions
-predictions, probabilities = pipeline.predict(
-    "results/checkpoints/final_model.pt",
-    "data/catastrophic_errors/encs_majority_test_blind.tsv",
-    "en-cs" 
-)
-```
-
-## 📝 Output Files
-
-After training, you'll find:
-- `results/checkpoints/final_model.pt` - Final trained model
-- `results/checkpoints/best_model_epoch_X.pt` - Best model during training
-- `results/checkpoints/training_history.json` - Training metrics
-- `logs/` - Training logs
-
-## 🔍 Troubleshooting
-
-**Common Issues:**
-
-1. **CUDA out of memory**: Reduce `batch_size` in config.yaml
-2. **Model loading errors**: Check PyTorch version compatibility
-3. **Data format errors**: Ensure TSV files have correct column structure
-
-**Getting Help:**
-```bash
-# Show available commands
-python scripts/run_pipeline.py --help
-
-# Show command-specific help
-python scripts/run_pipeline.py train --help
+# Show project status
+make status
 ```
 
 ## 🔗 References

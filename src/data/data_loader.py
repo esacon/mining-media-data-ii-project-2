@@ -1,10 +1,3 @@
-"""
-WMT21 Task 3 Data Loader.
-
-This module handles loading and preprocessing of the actual WMT21 Task 3
-Critical Error Detection data format.
-"""
-
 import ast
 import logging
 from pathlib import Path
@@ -13,12 +6,12 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from ..utils.logging_utils import get_logger
+from src.utils import get_logger
 
 
-class WMT21DataLoader:
+class CustomDataLoader:
     """
-    Data loader for WMT21 Task 3 Critical Error Detection format.
+    Data loader for Critical Error Detection format.
 
     Handles the actual format found in the catastrophic_errors data:
     ID  source-sentence  target-sentence  3-scores  aggregated-score
