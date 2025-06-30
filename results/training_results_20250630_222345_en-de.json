@@ -1,0 +1,8 @@
+{
+  "best_mcc": 0.3747788165476391,
+  "best_model_path": "results/checkpoints/best_model_20250630_221858_en-de_epoch_2.pt",
+  "final_model_path": "results/checkpoints/final_model_20250630_221858_en-de.pt",
+  "timestamp": "20250630_221858",
+  "language_pair": "en-de",
+  "model_prefix": "20250630_221858_en-de"
+}

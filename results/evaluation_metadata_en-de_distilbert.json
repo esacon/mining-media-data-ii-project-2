@@ -1,0 +1,15 @@
+{
+  "task": "Critical_Error_Detection",
+  "language_pair": "en-de",
+  "method_name": "distilbert",
+  "model_info": {
+    "total_parameters": 134735618,
+    "trainable_parameters": 134735618,
+    "disk_footprint_bytes": 538942472
+  },
+  "submission_stats": {
+    "total_predictions": 8878,
+    "critical_errors_detected": 2710,
+    "critical_error_rate": 0.3052489299391755
+  }
+}

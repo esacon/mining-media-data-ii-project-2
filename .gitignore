@@ -91,3 +91,6 @@ logs/
 *.pth
 *.pkl
 *.joblib
+
+# Slurm
+slurm/
