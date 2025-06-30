@@ -1,13 +1,14 @@
 """Setup script for Critical Error Detection package."""
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [
-        line.strip().split(';')[0] for line in fh 
+        line.strip().split(";")[0]
+        for line in fh
         if line.strip() and not line.startswith("#") and not line.startswith("-")
     ]
 
@@ -29,4 +30,4 @@ setup(
     python_requires=">=3.8",
     install_requires=requirements,
     include_package_data=True,
-) 
+)

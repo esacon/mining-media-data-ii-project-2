@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-import sys
-import os
 import argparse
 import codecs
+
 import numpy as np
 from sklearn.metrics import f1_score
 
@@ -10,7 +9,18 @@ from sklearn.metrics import f1_score
 Scoring programme for WMT'21 Task 3 Critical Error Detection
 """
 
-tag_map = {'GOOD': 0, 'good': 0, 'OK': 0, 'ok': 0, 'NOT': 0, 'not': 0, 'BAD': 1, 'bad': 1, 'ERR': 1, 'err': 1}
+tag_map = {
+    "GOOD": 0,
+    "good": 0,
+    "OK": 0,
+    "ok": 0,
+    "NOT": 0,
+    "not": 0,
+    "BAD": 1,
+    "bad": 1,
+    "ERR": 1,
+    "err": 1,
+}
 
 
 def computeScores(gold_tags, pred_tags):
@@ -18,8 +28,8 @@ def computeScores(gold_tags, pred_tags):
         assert len(pred_tags) == len(gold_tags)
     except:
         print("The prediction file doesn't match the length of the test file.")
-        print("Length prediction: ",len(pred_tags))
-        print("Length test: ",len(gold_tags))
+        print("Length prediction: ", len(pred_tags))
+        print("Length test: ", len(gold_tags))
 
     f1_all_scores = f1_score(gold_tags, pred_tags, average=None, pos_label=None)
 
@@ -56,9 +66,10 @@ def parse_submission(pred_list, goldlabel_bool):
         pred_list = pred_list[2:]
 
     for line in pred_list:
-        pred = line.strip().split('\t')
-        assert len(pred) == 4, \
-                "Incorrect format, expecting (tab separated): <LP> <METHOD_NAME> <SEGMENT_NUMBER> <SEGMENT_SCORE>."
+        pred = line.strip().split("\t")
+        assert (
+            len(pred) == 4
+        ), "Incorrect format, expecting (tab separated): <LP> <METHOD_NAME> <SEGMENT_NUMBER> <SEGMENT_SCORE>."
 
         lp_str = pred[0].lower()
         lp_segments.append(pred[1:])
@@ -74,31 +85,37 @@ def parse_submission(pred_list, goldlabel_bool):
     return disk_footprint, model_params, lp_str, lp_segments
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('system', help='System file')
-    parser.add_argument('gold', help='Gold output file')
+    parser.add_argument("system", help="System file")
+    parser.add_argument("gold", help="Gold output file")
 
     args = parser.parse_args()
 
     print("Loading goldlabels...")
-    with codecs.open(args.gold, 'r', encoding='utf-8') as truth_file:
+    with codecs.open(args.gold, "r", encoding="utf-8") as truth_file:
         _, _, lp_str_gold, goldlabels = parse_submission(truth_file.readlines(), True)
     print("done.")
 
     print("Loading your predictions...")
-    with codecs.open(args.system, 'r', encoding='utf-8') as submission_file:
-        disk_footprint, model_params, lp_str_pred, predictions = parse_submission(submission_file.readlines(), False)
+    with codecs.open(args.system, "r", encoding="utf-8") as submission_file:
+        disk_footprint, model_params, lp_str_pred, predictions = parse_submission(
+            submission_file.readlines(), False
+        )
     print("done.")
 
-    assert lp_str_pred == lp_str_gold, \
-            "Incorrect LP identification, expecting {}, given {}".format(lp_str_gold, lp_str_pred)
+    assert (
+        lp_str_pred == lp_str_gold
+    ), "Incorrect LP identification, expecting {}, given {}".format(
+        lp_str_gold, lp_str_pred
+    )
 
-    assert len(goldlabels) == len(predictions), \
-            "Incorrect number of predicted scores for {}, expecting {}, given {}.".format(
-                    lp_str_pred, len(goldlabels), len(predictions)
-                   )
+    assert len(goldlabels) == len(
+        predictions
+    ), "Incorrect number of predicted scores for {}, expecting {}, given {}.".format(
+        lp_str_pred, len(goldlabels), len(predictions)
+    )
 
     print("Computing scores...")
     f1_bad, f1_good, mcc = computeScores(goldlabels, predictions)
@@ -109,4 +126,3 @@ if __name__ == '__main__':
     print("F1_multi: {:.4}".format(f1_bad * f1_good))
     print("disk_footprint: {}".format(disk_footprint))
     print("model_params: {}".format(model_params))
-

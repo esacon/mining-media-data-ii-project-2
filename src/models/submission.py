@@ -9,8 +9,6 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional
 
-import pandas as pd
-
 from ..utils.logging_utils import get_logger
 
 
@@ -68,7 +66,9 @@ class WMT21SubmissionFormatter:
 
         # Lines 3+: Predictions in format:
         # <LP> <METHOD_NAME> <SEGMENT_NUMBER> <SEGMENT_SCORE>
-        for i, (test_id, pred, prob) in enumerate(zip(test_ids, predictions, probabilities)):
+        for i, (test_id, pred, prob) in enumerate(
+            zip(test_ids, predictions, probabilities)
+        ):
             # Convert binary prediction to submission format
             segment_score = self._binary_to_submission_label(pred)
 
@@ -83,7 +83,8 @@ class WMT21SubmissionFormatter:
         self.logger.info(f"Submission saved to: {output_path}")
         self.logger.info(f"Total predictions: {len(predictions)}")
         self.logger.info(
-            f"Critical errors detected: {sum(predictions)} ({sum(predictions)/len(predictions)*100:.1f}%)"
+            f"Critical errors detected: {sum(predictions)} "
+            f"({sum(predictions)/len(predictions)*100:.1f}%)"
         )
 
         return output_path
@@ -172,7 +173,9 @@ class WMT21SubmissionFormatter:
             "submission_stats": {
                 "total_predictions": len(predictions),
                 "critical_errors_detected": sum(predictions),
-                "critical_error_rate": sum(predictions) / len(predictions) if predictions else 0.0,
+                "critical_error_rate": (
+                    sum(predictions) / len(predictions) if predictions else 0.0
+                ),
             },
         }
 

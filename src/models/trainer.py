@@ -10,9 +10,7 @@ import os
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-import numpy as np
 import torch
-import torch.nn as nn
 from sklearn.metrics import (
     accuracy_score,
     matthews_corrcoef,
@@ -95,8 +93,12 @@ class Trainer:
         )
 
     def train(
-        self, train_dataloader: DataLoader, val_dataloader: DataLoader, save_dir: str
-    ) -> Dict[str, float]:
+        self,
+        train_dataloader: DataLoader,
+        val_dataloader: DataLoader,
+        save_dir: str,
+        language_pair: Optional[str] = None,
+    ) -> Dict[str, dict]:
         """
         Train the model.
 
@@ -115,11 +117,17 @@ class Trainer:
         # Create save directory
         os.makedirs(save_dir, exist_ok=True)
 
+        # Generate timestamp and model prefix for unique naming
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        lang_suffix = f"_{language_pair}" if language_pair else ""
+        model_prefix = f"{timestamp}{lang_suffix}"
+
         best_mcc = -1.0
         best_model_path = None
 
         self.logger.info(f"Starting training for {self.num_epochs} epochs")
         self.logger.info(f"Total training steps: {num_training_steps}")
+        self.logger.info(f"Model prefix: {model_prefix}")
 
         for epoch in range(self.num_epochs):
             self.logger.info(f"Epoch {epoch + 1}/{self.num_epochs}")
@@ -138,7 +146,9 @@ class Trainer:
             self.training_history["val_loss"].append(val_loss)
             self.training_history["val_mcc"].append(val_mcc)
             self.training_history["val_accuracy"].append(val_accuracy)
-            self.training_history["learning_rates"].append(self.scheduler.get_last_lr()[0])
+            self.training_history["learning_rates"].append(
+                self.scheduler.get_last_lr()[0]
+            )
 
             # Log metrics
             self.logger.info(
@@ -151,7 +161,9 @@ class Trainer:
             # Save best model
             if val_mcc > best_mcc:
                 best_mcc = val_mcc
-                best_model_path = os.path.join(save_dir, f"best_model_epoch_{epoch + 1}.pt")
+                best_model_path = os.path.join(
+                    save_dir, f"best_model_{model_prefix}_epoch_{epoch + 1}.pt"
+                )
                 torch.save(
                     {
                         "epoch": epoch + 1,
@@ -167,7 +179,7 @@ class Trainer:
                 self.logger.info(f"New best model saved: {best_model_path}")
 
         # Save final model
-        final_model_path = os.path.join(save_dir, "final_model.pt")
+        final_model_path = os.path.join(save_dir, f"final_model_{model_prefix}.pt")
         torch.save(
             {
                 "model_state_dict": self.model.state_dict(),
@@ -179,7 +191,7 @@ class Trainer:
         )
 
         # Save training history
-        history_path = os.path.join(save_dir, "training_history.json")
+        history_path = os.path.join(save_dir, f"training_history_{model_prefix}.json")
         with open(history_path, "w") as f:
             json.dump(self.training_history, f, indent=2)
 
@@ -189,6 +201,9 @@ class Trainer:
             "best_mcc": best_mcc,
             "best_model_path": best_model_path,
             "final_model_path": final_model_path,
+            "timestamp": timestamp,
+            "language_pair": language_pair,
+            "model_prefix": model_prefix,
         }
 
     def _train_epoch(self, dataloader: DataLoader) -> float:
@@ -204,7 +219,9 @@ class Trainer:
             labels = batch["labels"].to(self.device)
 
             # Forward pass
-            outputs = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+            outputs = self.model(
+                input_ids=input_ids, attention_mask=attention_mask, labels=labels
+            )
 
             loss = outputs["loss"]
             total_loss += loss.item()

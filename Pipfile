@@ -21,6 +21,9 @@ numpy = "*"
 matplotlib = "*"
 seaborn = "*"
 pyyaml = "*"
+pyupgrade = "*"
+autoflake = "*"
+mypy = "*"
 
 [dev-packages]
 

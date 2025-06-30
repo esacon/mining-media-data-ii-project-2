@@ -8,7 +8,7 @@ Critical Error Detection data format.
 import ast
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -43,7 +43,10 @@ class WMT21DataLoader:
 
         # Read TSV file
         df = pd.read_csv(
-            file_path, sep="\t", header=None, names=["id", "source", "target", "scores", "label"]
+            file_path,
+            sep="\t",
+            header=None,
+            names=["id", "source", "target", "scores", "label"],
         )
 
         # Parse individual scores (format: [0, 1, 0])
@@ -56,7 +59,9 @@ class WMT21DataLoader:
         df["language_pair"] = self._extract_language_pair(file_path)
 
         self.logger.info(f"Loaded {len(df)} samples")
-        self.logger.info(f"Label distribution: {df['binary_label'].value_counts().to_dict()}")
+        self.logger.info(
+            f"Label distribution: {df['binary_label'].value_counts().to_dict()}"
+        )
 
         return df
 
@@ -74,7 +79,9 @@ class WMT21DataLoader:
         self.logger.info(f"Loading test data from: {file_path}")
 
         # Read TSV file
-        df = pd.read_csv(file_path, sep="\t", header=None, names=["id", "source", "target"])
+        df = pd.read_csv(
+            file_path, sep="\t", header=None, names=["id", "source", "target"]
+        )
 
         # Add language pair from filename
         df["language_pair"] = self._extract_language_pair(file_path)
@@ -193,11 +200,15 @@ class WMT21DataLoader:
 
         return {
             "mean_agreement": np.mean(agreements),
-            "full_agreement_ratio": sum(1 for a in agreements if a == 1.0) / len(agreements),
-            "majority_agreement_ratio": sum(1 for a in agreements if a >= 0.67) / len(agreements),
+            "full_agreement_ratio": sum(1 for a in agreements if a == 1.0)
+            / len(agreements),
+            "majority_agreement_ratio": sum(1 for a in agreements if a >= 0.67)
+            / len(agreements),
         }
 
-    def filter_by_language_pair(self, df: pd.DataFrame, language_pair: str) -> pd.DataFrame:
+    def filter_by_language_pair(
+        self, df: pd.DataFrame, language_pair: str
+    ) -> pd.DataFrame:
         """
         Filter dataset by specific language pair.
 
@@ -230,7 +241,9 @@ class WMT21DataLoader:
                 raise ValueError(f"Missing required column: {col}")
 
         # Create a clean training DataFrame
-        training_df = df[["id", "source", "target", "binary_label", "language_pair"]].copy()
+        training_df = df[
+            ["id", "source", "target", "binary_label", "language_pair"]
+        ].copy()
         training_df = training_df.rename(columns={"binary_label": "label"})
 
         # Remove any rows with missing data

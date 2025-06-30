@@ -5,7 +5,7 @@ This module implements a fine-tuned DistilBERT model for binary classification
 of critical translation errors.
 """
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -59,7 +59,9 @@ class DistilBERTClassifier(DistilBertPreTrainedModel):
         Returns:
             Tuple containing loss and logits
         """
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         # Get DistilBERT outputs
         distilbert_output = self.distilbert(

@@ -4,13 +4,14 @@ Dataset class for WMT21 Task 3 Critical Error Detection.
 This module implements a PyTorch dataset for handling critical error detection data.
 """
 
-import json
-from typing import Any, Dict, List, Optional
+from typing import Dict, Optional
 
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from transformers import DistilBertTokenizer
+
+from .data_loader import WMT21DataLoader
 
 
 class CriticalErrorDataset(Dataset):
@@ -61,59 +62,97 @@ class CriticalErrorDataset(Dataset):
         Returns:
             DataFrame with columns: source, target, label, language_pair
         """
-        from .data_loader import WMT21DataLoader
-
-        # Use the WMT21 data loader for proper format handling
         loader = WMT21DataLoader()
 
-        if data_path.endswith(".tsv"):
+        from pathlib import Path
+
+        path_obj = Path(data_path)
+
+        # If it's a directory, find the appropriate files
+        if path_obj.is_dir():
+            return self._load_from_directory(path_obj, loader)
+
+        elif data_path.endswith(".tsv"):
             # Check if it's a combined training file (has 6 columns)
             if "combined_train" in data_path:
-                # Handle combined training files with format: ID source target scores binary_label language_pair
                 df = pd.read_csv(
-                    data_path, sep="\t", header=None, 
-                    names=["id", "source", "target", "scores", "binary_label", "language_pair"]
+                    data_path,
+                    sep="\t",
+                    header=None,
+                    names=[
+                        "id",
+                        "source",
+                        "target",
+                        "scores",
+                        "binary_label",
+                        "language_pair",
+                    ],
                 )
                 # Rename binary_label to label for consistency
                 df = df.rename(columns={"binary_label": "label"})
                 return df
-            
             # Check if it's a test file (no labels) or train/dev file (with labels)
             elif "test_blind" in data_path:
                 df = loader.load_test_data(data_path)
-                # Add dummy labels for test data
-                df["label"] = 0  # Will be ignored during inference
+                df["label"] = 0
+                return df
             else:
                 df = loader.load_train_dev_data(data_path)
                 df = loader.prepare_for_training(df)
-        elif data_path.endswith(".json") or data_path.endswith(".jsonl"):
-            # Load JSON format (fallback for custom data)
-            if data_path.endswith(".jsonl"):
-                # JSON Lines format
-                data = []
-                with open(data_path, "r", encoding="utf-8") as f:
-                    for line in f:
-                        data.append(json.loads(line.strip()))
-                df = pd.DataFrame(data)
-            else:
-                # Regular JSON format
-                with open(data_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                df = pd.DataFrame(data)
-
-            # Ensure required columns exist
-            required_columns = ["source", "target", "label"]
-            for col in required_columns:
-                if col not in df.columns:
-                    raise ValueError(f"Missing required column: {col}")
-
-            # Add language_pair column if not present
-            if "language_pair" not in df.columns:
-                df["language_pair"] = "unknown"
+                return df
         else:
             raise ValueError(f"Unsupported file format: {data_path}")
 
-        return df
+    def _load_from_directory(self, data_dir, loader) -> pd.DataFrame:
+        """
+        Load training and dev data from directory.
+
+        Args:
+            data_dir: Directory containing TSV files
+            loader: Data loader instance
+
+        Returns:
+            Combined DataFrame from train and dev files
+        """
+        # Map language pairs to file prefixes
+        prefix_map = {
+            "en-de": "ende",
+            "en-ja": "enja",
+            "en-zh": "enzh",
+            "en-cs": "encs",
+        }
+
+        all_data = []
+
+        # If specific language pair is requested, load only that
+        if self.language_pair and self.language_pair in prefix_map:
+            prefixes = [prefix_map[self.language_pair]]
+        else:
+            # Load all language pairs
+            prefixes = list(prefix_map.values())
+
+        for prefix in prefixes:
+            train_file = data_dir / f"{prefix}_majority_train.tsv"
+            dev_file = data_dir / f"{prefix}_majority_dev.tsv"
+
+            # Load training data
+            if train_file.exists():
+                train_df = loader.load_train_dev_data(str(train_file))
+                train_df = loader.prepare_for_training(train_df)
+                all_data.append(train_df)
+
+            # Load dev data
+            if dev_file.exists():
+                dev_df = loader.load_train_dev_data(str(dev_file))
+                dev_df = loader.prepare_for_training(dev_df)
+                all_data.append(dev_df)
+
+        if not all_data:
+            raise ValueError(f"No training data found in directory: {data_dir}")
+
+        # Combine all data
+        combined_df = pd.concat(all_data, ignore_index=True)
+        return combined_df
 
     def __len__(self) -> int:
         """Return the number of samples in the dataset."""
@@ -134,7 +173,7 @@ class CriticalErrorDataset(Dataset):
         # Get text inputs
         source_text = str(row["source"])
         target_text = str(row["target"])
-        
+
         # Ensure label is converted to integer
         try:
             label = int(float(row["label"]))  # Handle both int and float strings
