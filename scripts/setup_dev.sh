@@ -1,5 +1,5 @@
 #!/bin/bash
-# This script sets up the development environment for the churn prediction project.
+# This script sets up the development environment for the critical error detection project.
 
 set -e
 
