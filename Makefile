@@ -19,7 +19,7 @@ RED=\033[31m
 RESET=\033[0m
 BOLD=\033[1m
 
-.PHONY: help install train evaluate predict analyze debug-train debug-evaluate debug-predict debug-experiment status clean check-performance format lint
+.PHONY: help install train evaluate predict analyze debug-train debug-evaluate debug-predict debug-experiment status clean check-performance check-llm-performance check-all-performance format lint
 
 help:
 	@echo "$(BOLD)Critical Error Detection$(RESET)"
@@ -42,6 +42,8 @@ help:
 	@echo "  $(BLUE)clean$(RESET)          - Clean up generated files and caches"
 	@echo "  $(BLUE)status$(RESET)         - Show project status"
 	@echo "  $(BLUE)check-performance$(RESET) - Analyze model performance and metrics"
+	@echo "  $(BLUE)check-llm-performance$(RESET) - Analyze LLM evaluation results"
+	@echo "  $(BLUE)check-all-performance$(RESET) - Analyze ALL performance (Traditional + LLM)"
 	@echo "  $(BLUE)format$(RESET)         - Format code with black and isort"
 	@echo "  $(BLUE)lint$(RESET)           - Run linting with flake8"
 	@echo "  $(BLUE)all$(RESET)            - Run clean, format, and lint"
@@ -59,6 +61,8 @@ help:
 	@echo "  make predict LANG=en-de NO_EVAL_FORMAT=1"
 	@echo "  make evaluate-llm-all"
 	@echo "  make evaluate-llm-all SAMPLE_SIZE=50"
+	@echo "  make check-llm-performance"
+	@echo "  make check-all-performance"
 	@echo ""
 	@echo "$(BOLD)Variables:$(RESET)"
 	@echo "  LANG=<pair>       Language pair (en-de, en-ja, en-zh, en-cs)"
@@ -210,6 +214,20 @@ check-performance:
 	@echo "$(BOLD)Analyzing model performance...$(RESET)"
 	pipenv run python scripts/check_model_performance.py
 	@echo "$(GREEN)Performance analysis completed$(RESET)"
+
+check-llm-performance:
+	@echo "$(BOLD)Analyzing LLM evaluation performance...$(RESET)"
+	pipenv run python scripts/check_llm_performance.py
+	@echo "$(GREEN)LLM performance analysis completed$(RESET)"
+
+check-all-performance:
+	@echo "$(BOLD)Analyzing ALL model performance (Traditional + LLM)...$(RESET)"
+	@echo "$(BLUE)Running traditional model analysis...$(RESET)"
+	pipenv run python scripts/check_model_performance.py
+	@echo ""
+	@echo "$(BLUE)Running LLM evaluation analysis...$(RESET)"
+	pipenv run python scripts/check_llm_performance.py
+	@echo "$(GREEN)All performance analyses completed$(RESET)"
 
 evaluate-llm:
 	@echo "$(BOLD)Evaluating LLM models...$(RESET)"
