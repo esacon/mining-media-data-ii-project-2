@@ -12,9 +12,15 @@ from tqdm import tqdm
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
-    GenerationConfig,
     pipeline,
 )
+
+try:
+    from transformers import BitsAndBytesConfig
+
+    BITSANDBYTES_AVAILABLE = True
+except ImportError:
+    BITSANDBYTES_AVAILABLE = False
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -76,29 +82,67 @@ class LLMModel(ABC):
 
     def _extract_prediction(self, response: str) -> str:
         """Extract ERR/NOT prediction from model response."""
-        response = response.strip().upper()
+        response = response.strip()
 
-        # Look for exact "ERR" or "NOT" responses
-        if "ERR" in response and "NOT" not in response:
-            return "ERR"
-        elif "NOT" in response and "ERR" not in response:
-            return "NOT"
+        # First, try to find answer at the very beginning of response
+        first_line = response.split("\n")[0].strip().upper()
+        if first_line == "ERR" or first_line == "NOT":
+            return first_line
 
-        # Look for patterns like "Response: ERR" or "Answer: NOT"
-        patterns = [
+        # Look for patterns where the answer appears first, before explanations
+        early_patterns = [
+            r"^(ERR|NOT)\b",  # Starts with ERR or NOT
+            r"^(ERR|NOT)\s*[.!,\n]",  # ERR/NOT followed by punctuation or newline
+            r"^(ERR|NOT)\s*-",  # ERR/NOT followed by dash
+            r"^(ERR|NOT)\s*$",  # Just ERR/NOT alone
+        ]
+
+        response_upper = response.upper()
+        for pattern in early_patterns:
+            match = re.search(pattern, response_upper, re.MULTILINE)
+            if match:
+                return match.group(1)
+
+        # Look for explicit response patterns
+        response_patterns = [
             r"RESPONSE:\s*(ERR|NOT)",
             r"ANSWER:\s*(ERR|NOT)",
             r"RESULT:\s*(ERR|NOT)",
             r"CLASSIFICATION:\s*(ERR|NOT)",
-            r"\b(ERR|NOT)\b",
+            r"YOUR RESPONSE.*?:\s*(ERR|NOT)",
+            r"ONE WORD.*?:\s*(ERR|NOT)",
         ]
 
-        for pattern in patterns:
-            match = re.search(pattern, response)
+        for pattern in response_patterns:
+            match = re.search(pattern, response_upper)
             if match:
-                return match.group(1) if len(match.groups()) > 0 else match.group(0)
+                return match.group(1)
 
-        # Default to NOT if unclear
+        # Split response into sentences and look for first clear ERR/NOT
+        sentences = re.split(r"[.!?\n]+", response_upper)
+        for sentence in sentences:
+            sentence = sentence.strip()
+            # Look for sentence that contains only ERR or NOT
+            if re.match(r"^[^A-Z]*\b(ERR|NOT)\b[^A-Z]*$", sentence):
+                match = re.search(r"\b(ERR|NOT)\b", sentence)
+                if match:
+                    return match.group(1)
+
+        # Look for the first occurrence of ERR or NOT as a complete word
+        err_match = re.search(r"\bERR\b", response_upper)
+        not_match = re.search(r"\bNOT\b", response_upper)
+
+        # If both are found, take the one that appears first
+        if err_match and not_match:
+            if err_match.start() < not_match.start():
+                return "ERR"
+            else:
+                return "NOT"
+        elif err_match:
+            return "ERR"
+        elif not_match:
+            return "NOT"
+
         return "NOT"
 
 
@@ -135,7 +179,17 @@ class HuggingFaceLLM(LLMModel):
         }
 
         if self.load_in_8bit and self.device.type == "cuda":
-            model_kwargs["load_in_8bit"] = True
+            if BITSANDBYTES_AVAILABLE:
+                try:
+                    quantization_config = BitsAndBytesConfig(
+                        load_in_8bit=True,
+                        bnb_4bit_compute_dtype=torch.float16,
+                    )
+                    model_kwargs["quantization_config"] = quantization_config
+                except Exception:
+                    self.load_in_8bit = False
+            else:
+                self.load_in_8bit = False
 
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name, **model_kwargs
@@ -160,26 +214,52 @@ class HuggingFaceLLM(LLMModel):
         if self.pipeline is None:
             raise RuntimeError("Model not loaded. Call load_model() first.")
 
-        # Generation config
-        generation_config = GenerationConfig(
-            max_new_tokens=256,  # Limit new tokens for efficiency
-            temperature=0.1,  # Low temperature for consistency
-            do_sample=True,
-            top_p=0.9,
-            repetition_penalty=1.1,
-            pad_token_id=self.tokenizer.pad_token_id,
-            eos_token_id=self.tokenizer.eos_token_id,
-        )
+        try:
+            generation_config = {
+                "max_new_tokens": 256,
+                "temperature": 0.1,
+                "do_sample": True,
+                "top_p": 0.9,
+                "repetition_penalty": 1.1,
+                "return_full_text": False,
+                "pad_token_id": self.tokenizer.pad_token_id,
+                "eos_token_id": self.tokenizer.eos_token_id,
+            }
 
-        # Generate response
-        outputs = self.pipeline(
-            prompt,
-            generation_config=generation_config,
-            return_full_text=False,  # Only return new tokens
-        )
+            outputs = self.pipeline(prompt, **generation_config)
 
-        response = outputs[0]["generated_text"]
-        return response.strip()
+            response = outputs[0]["generated_text"]
+            return response.strip()
+
+        except Exception as e:
+            logger = get_logger(f"llm.{self.__class__.__name__}")
+            logger.warning(
+                f"Pipeline generation failed: {e}. Trying direct model generation."
+            )
+
+            inputs = self.tokenizer(
+                prompt, return_tensors="pt", padding=True, truncation=True
+            )
+            if not self.load_in_8bit:
+                inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=256,
+                    temperature=0.1,
+                    do_sample=True,
+                    top_p=0.9,
+                    repetition_penalty=1.1,
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    use_cache=False,
+                )
+
+            input_length = inputs["input_ids"].shape[1]
+            generated_tokens = outputs[0][input_length:]
+            response = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
+            return response.strip()
 
 
 class Llama3Model(HuggingFaceLLM):
@@ -195,26 +275,16 @@ class Llama3Model(HuggingFaceLLM):
         super().__init__(model_name, device, load_in_8bit)
 
 
-class Phi3Model(HuggingFaceLLM):
-    """Phi-3 model for critical error detection."""
-
-    def __init__(
-        self, model_size: str = "mini", device: str = "auto", load_in_8bit: bool = False
-    ):
-        model_name = "microsoft/Phi-3-mini-4k-instruct"
-        super().__init__(model_name, device, load_in_8bit)
-
-
-class MixtralModel(HuggingFaceLLM):
-    """Mixtral-style model for critical error detection."""
+class DeepSeekModel(HuggingFaceLLM):
+    """DeepSeek-R1 8B model for critical error detection."""
 
     def __init__(
         self,
-        model_size: str = "small",
+        model_size: str = "8b",
         device: str = "auto",
         load_in_8bit: bool = False,
     ):
-        model_name = "mistralai/Mixtral-8x7B-Instruct-v0.1"
+        model_name = "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"
         super().__init__(model_name, device, load_in_8bit)
 
 
@@ -223,13 +293,13 @@ def get_llm_model(model_type: str, **kwargs) -> LLMModel:
     Get LLM model by type.
 
     Args:
-        model_type: Type of model ("llama3", "phi3", "mixtral")
+        model_type: Type of model ("llama3", "deepseek")
         **kwargs: Additional arguments for model initialization
 
     Returns:
         LLM model instance
     """
-    models = {"llama3": Llama3Model, "phi3": Phi3Model, "mixtral": MixtralModel}
+    models = {"llama3": Llama3Model, "deepseek": DeepSeekModel}
 
     if model_type not in models:
         raise ValueError(

@@ -38,10 +38,11 @@ class ZeroShotPrompt(PromptTemplate):
             "- Preserving source language toxicity (not an error)\n\n"
             "Source text: {source}\n"
             "Translation: {target}\n\n"
-            "Analyze for critical errors and respond with exactly one word:\n"
-            '- "ERR" if there are critical errors\n'
-            '- "NOT" if there are no critical errors\n\n'
-            "Response:"
+            "IMPORTANT: Respond with EXACTLY ONE WORD ONLY. No explanations, "
+            "no reasoning, no additional text.\n\n"
+            "If there are critical errors: ERR\n"
+            "If there are no critical errors: NOT\n\n"
+            "Your response (one word only):"
         )
         super().__init__(template)
 
@@ -65,49 +66,46 @@ class FewShotPrompt(PromptTemplate):
             "reverses sentiment\n"
             "5. NUMBERS/UNITS (NUM): Incorrectly translates numbers, dates, "
             "times, measurements\n\n"
-            "Examples:\n\n"
+            "Examples (respond with EXACTLY ONE WORD ONLY):\n\n"
             "Source: You're a band of brothers\n"
             "Translation: You're a band of bastards\n"
-            "Category: TOXICITY - introduces profanity where none existed\n"
-            "Response: ERR\n\n"
+            "ERR\n\n"
             "Source: Wash your hands before eating\n"
             "Translation: Shake hands before eating\n"
-            "Category: SAFETY RISKS - removes health safety instruction\n"
-            "Response: ERR\n\n"
+            "ERR\n\n"
             "Source: LG releases new smartphone\n"
             "Translation: Samsung releases new smartphone\n"
-            "Category: NAMED ENTITY - incorrect company name\n"
-            "Response: ERR\n\n"
+            "ERR\n\n"
             "Source: Don't buy this product!\n"
             "Translation: Do buy this product!\n"
-            "Category: SENTIMENT POLARITY - removes negation, reverses meaning\n"
-            "Response: ERR\n\n"
+            "ERR\n\n"
             "Source: Drive 20 kilometers to the city\n"
             "Translation: Drive 20 miles to the city\n"
-            "Category: NUMBERS/UNITS - incorrect unit conversion\n"
-            "Response: ERR\n\n"
+            "ERR\n\n"
             "Source: The weather is nice today\n"
             "Translation: Das Wetter ist heute schön\n"
-            "Category: None - correct translation with minor style differences\n"
-            "Response: NOT\n\n"
+            "NOT\n\n"
             "Source: Please call me when you arrive\n"
             "Translation: Bitte rufen Sie mich an, wenn Sie ankommen\n"
-            "Category: None - meaning preserved correctly\n"
-            "Response: NOT\n\n"
+            "NOT\n\n"
             "Now analyze this translation:\n\n"
             "Source text: {source}\n"
             "Translation: {target}\n\n"
-            "Analyze for critical errors and respond with exactly one word:\n"
-            '- "ERR" if there are critical errors\n'
-            '- "NOT" if there are no critical errors\n\n'
-            "Response:"
+            "IMPORTANT: Respond with EXACTLY ONE WORD ONLY. No explanations, "
+            "no reasoning, no additional text.\n\n"
+            "If there are critical errors: ERR\n"
+            "If there are no critical errors: NOT\n\n"
+            "Your response (one word only):"
         )
         super().__init__(template)
 
 
 def get_prompt_template(prompt_type: str) -> PromptTemplate:
     """Get prompt template by type."""
-    templates = {"zero_shot": ZeroShotPrompt(), "few_shot": FewShotPrompt()}
+    templates = {
+        "zero_shot": ZeroShotPrompt(),
+        "few_shot": FewShotPrompt(),
+    }
 
     if prompt_type not in templates:
         raise ValueError(

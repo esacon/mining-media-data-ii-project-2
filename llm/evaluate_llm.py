@@ -2,7 +2,7 @@
 """
 LLM evaluation script for critical error detection.
 
-This script compares generative models (Llama3, Phi3, Mixtral) against
+This script compares generative models (Llama3, DeepSeek) against
 the fine-tuned DistilBERT model using zero-shot and few-shot prompting.
 """
 
@@ -77,7 +77,7 @@ def evaluate_llm_model(
     Evaluate a single LLM model.
 
     Args:
-        model_type: Type of LLM ("llama3", "phi3", "mixtral")
+        model_type: Type of LLM ("llama3", "deepseek")
         prompt_type: Type of prompt ("zero_shot", "few_shot", "chain_of_thought")
         language_pair: Language pair to evaluate on
         data_dir: Directory containing test data
@@ -156,8 +156,8 @@ def main():
 
     parser.add_argument(
         "--model",
-        choices=["llama3", "phi3", "mixtral", "all"],
-        default="phi3",
+        choices=["llama3", "deepseek", "all"],
+        default="llama3",
         help="LLM model to evaluate",
     )
 
@@ -208,7 +208,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Determine models and prompts to evaluate
-    models = ["llama3", "phi3", "mixtral"] if args.model == "all" else [args.model]
+    models = ["llama3", "deepseek"] if args.model == "all" else [args.model]
     prompts = ["zero_shot", "few_shot"] if args.prompt == "all" else [args.prompt]
 
     all_results = []

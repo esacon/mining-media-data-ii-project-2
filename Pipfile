@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 # Core ML/Data Science
 torch = ">=2.7.0"
-transformers = ">=4.53.0"
+transformers = ">=4.42.0,<4.55.0"
 scikit-learn = ">=1.7.0"
 pandas = ">=2.3.0"
 numpy = ">=2.3.0"

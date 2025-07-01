@@ -4,9 +4,8 @@ Zero-shot and few-shot critical error detection using small language models as a
 
 ## Models
 
-- **Llama3** (Llama-3.1-8B-Instruct, 70B params)
-- **Phi3** (Phi-3-mini-4k-instruct, 67M params) 
-- **Mixtral** (Mixtral-8x7B-Instruct-v0.1, 128B params)
+- **Llama3** (Llama-3.1-8B-Instruct, 8B params)
+- **DeepSeek** (DeepSeek-R1-0528-Qwen3-8B, 8B params)
 
 ## Prompts
 
@@ -28,12 +27,15 @@ Direct WMT21 error category instructions without examples.
 
 ```bash
 # Single model evaluation
-make evaluate-llm MODEL=phi3 PROMPT=zero_shot LANG=en-de
+make evaluate-llm MODEL=llama3 PROMPT=zero_shot LANG=en-de
 
-# All models and prompts 
+# Compare Llama3 vs DeepSeek 
 make evaluate-llm MODEL=all PROMPT=all LANG=en-de
 
-# Quick test
+# Quick test with DeepSeek
+make evaluate-llm MODEL=deepseek PROMPT=zero_shot LANG=en-de
+
+# Debug test
 make debug-llm LANG=en-de
 ```
 

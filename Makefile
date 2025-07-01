@@ -215,7 +215,7 @@ evaluate-llm:
 	@echo "$(BOLD)Evaluating LLM models...$(RESET)"
 	@mkdir -p $(RESULTS_DIR)/llm_evaluation
 	pipenv run python llm/evaluate_llm.py \
-		$(if $(MODEL),--model $(MODEL),--model phi3) \
+		$(if $(MODEL),--model $(MODEL),--model llama3) \
 		$(if $(PROMPT),--prompt $(PROMPT),--prompt zero_shot) \
 		$(if $(LANG),--language-pair $(LANG),--language-pair en-de) \
 		$(if $(SAMPLE_SIZE),--sample-size $(SAMPLE_SIZE)) \
@@ -244,7 +244,7 @@ debug-llm:
 	@echo "$(BOLD)Debug LLM evaluation (small sample)...$(RESET)"
 	@mkdir -p $(RESULTS_DIR)/llm_evaluation
 	pipenv run python llm/evaluate_llm.py \
-		--model phi3 \
+		--model llama3 \
 		--prompt zero_shot \
 		$(if $(LANG),--language-pair $(LANG),--language-pair en-de) \
 		--sample-size 10 \
