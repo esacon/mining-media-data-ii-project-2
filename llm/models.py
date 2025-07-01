@@ -1,5 +1,3 @@
-"""LLM models for critical error detection."""
-
 import re
 import sys
 import time
@@ -29,8 +27,6 @@ from src.utils import get_logger  # noqa: E402
 
 
 class LLMModel(ABC):
-    """Abstract base class for LLM models."""
-
     def __init__(self, model_name: str, device: str = "auto"):
         self.model_name = model_name
         self.device = self._setup_device(device)
@@ -38,7 +34,6 @@ class LLMModel(ABC):
         self.model = None
 
     def _setup_device(self, device: str) -> torch.device:
-        """Setup device for model."""
         if device == "auto":
             if torch.cuda.is_available():
                 return torch.device("cuda")
@@ -50,105 +45,56 @@ class LLMModel(ABC):
 
     @abstractmethod
     def load_model(self):
-        """Load the model and tokenizer."""
         pass
 
     @abstractmethod
     def generate_response(self, prompt: str, max_length: int = 1024) -> str:
-        """Generate response from prompt."""
         pass
 
     def predict(
         self, source: str, target: str, prompt_template: PromptTemplate
     ) -> Tuple[str, str]:
-        """
-        Predict critical error label for source-target pair.
-
-        Args:
-            source: Source text
-            target: Target translation
-            prompt_template: Prompt template to use
-
-        Returns:
-            Tuple of (prediction, full_response)
-        """
         prompt = prompt_template.format(source=source, target=target)
         full_response = self.generate_response(prompt)
-
-        # Extract prediction from response
         prediction = self._extract_prediction(full_response)
-
         return prediction, full_response
 
     def _extract_prediction(self, response: str) -> str:
-        """Extract ERR/NOT prediction from model response."""
         response = response.strip()
 
-        # First, try to find answer at the very beginning of response
-        first_line = response.split("\n")[0].strip().upper()
-        if first_line == "ERR" or first_line == "NOT":
-            return first_line
-
-        # Look for patterns where the answer appears first, before explanations
-        early_patterns = [
-            r"^(ERR|NOT)\b",  # Starts with ERR or NOT
-            r"^(ERR|NOT)\s*[.!,\n]",  # ERR/NOT followed by punctuation or newline
-            r"^(ERR|NOT)\s*-",  # ERR/NOT followed by dash
-            r"^(ERR|NOT)\s*$",  # Just ERR/NOT alone
-        ]
+        if not response:
+            return "NOT"
 
         response_upper = response.upper()
-        for pattern in early_patterns:
-            match = re.search(pattern, response_upper, re.MULTILINE)
-            if match:
-                return match.group(1)
 
-        # Look for explicit response patterns
-        response_patterns = [
-            r"RESPONSE:\s*(ERR|NOT)",
-            r"ANSWER:\s*(ERR|NOT)",
-            r"RESULT:\s*(ERR|NOT)",
-            r"CLASSIFICATION:\s*(ERR|NOT)",
-            r"YOUR RESPONSE.*?:\s*(ERR|NOT)",
-            r"ONE WORD.*?:\s*(ERR|NOT)",
-        ]
+        if response_upper == "ERR":
+            return "ERR"
+        elif response_upper == "NOT":
+            return "NOT"
 
-        for pattern in response_patterns:
-            match = re.search(pattern, response_upper)
-            if match:
-                return match.group(1)
+        if response_upper.startswith("ERR"):
+            return "ERR"
+        elif response_upper.startswith("NOT"):
+            return "NOT"
 
-        # Split response into sentences and look for first clear ERR/NOT
-        sentences = re.split(r"[.!?\n]+", response_upper)
-        for sentence in sentences:
-            sentence = sentence.strip()
-            # Look for sentence that contains only ERR or NOT
-            if re.match(r"^[^A-Z]*\b(ERR|NOT)\b[^A-Z]*$", sentence):
-                match = re.search(r"\b(ERR|NOT)\b", sentence)
-                if match:
-                    return match.group(1)
-
-        # Look for the first occurrence of ERR or NOT as a complete word
         err_match = re.search(r"\bERR\b", response_upper)
         not_match = re.search(r"\bNOT\b", response_upper)
 
-        # If both are found, take the one that appears first
-        if err_match and not_match:
-            if err_match.start() < not_match.start():
-                return "ERR"
-            else:
+        if err_match and err_match.start() < 50:
+            if (
+                not_match
+                and not_match.start() < 50
+                and not_match.start() < err_match.start()
+            ):
                 return "NOT"
-        elif err_match:
             return "ERR"
-        elif not_match:
+        elif not_match and not_match.start() < 50:
             return "NOT"
 
         return "NOT"
 
 
 class HuggingFaceLLM(LLMModel):
-    """HuggingFace-based LLM model."""
-
     def __init__(
         self, model_name: str, device: str = "auto", load_in_8bit: bool = False
     ):
@@ -157,20 +103,16 @@ class HuggingFaceLLM(LLMModel):
         self.pipeline = None
 
     def load_model(self):
-        """Load HuggingFace model and tokenizer."""
         logger = get_logger(f"llm.{self.__class__.__name__}")
         logger.info(f"Loading {self.model_name}...")
 
-        # Load tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_name, trust_remote_code=True
         )
 
-        # Set pad token if not exists
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        # Load model
         model_kwargs = {
             "trust_remote_code": True,
             "torch_dtype": (
@@ -198,7 +140,6 @@ class HuggingFaceLLM(LLMModel):
         if not self.load_in_8bit:
             self.model = self.model.to(self.device)
 
-        # Create generation pipeline
         self.pipeline = pipeline(
             "text-generation",
             model=self.model,
@@ -210,13 +151,12 @@ class HuggingFaceLLM(LLMModel):
         logger.info(f"Model loaded successfully on {self.device}")
 
     def generate_response(self, prompt: str, max_length: int = 1024) -> str:
-        """Generate response using HuggingFace pipeline."""
         if self.pipeline is None:
             raise RuntimeError("Model not loaded. Call load_model() first.")
 
         try:
             generation_config = {
-                "max_new_tokens": 256,
+                "max_new_tokens": 48,
                 "temperature": 0.1,
                 "do_sample": True,
                 "top_p": 0.9,
@@ -227,9 +167,9 @@ class HuggingFaceLLM(LLMModel):
             }
 
             outputs = self.pipeline(prompt, **generation_config)
-
             response = outputs[0]["generated_text"]
-            return response.strip()
+
+            return self._truncate_to_first_word(response.strip())
 
         except Exception as e:
             logger = get_logger(f"llm.{self.__class__.__name__}")
@@ -246,7 +186,7 @@ class HuggingFaceLLM(LLMModel):
             with torch.no_grad():
                 outputs = self.model.generate(
                     **inputs,
-                    max_new_tokens=256,
+                    max_new_tokens=48,
                     temperature=0.1,
                     do_sample=True,
                     top_p=0.9,
@@ -263,8 +203,6 @@ class HuggingFaceLLM(LLMModel):
 
 
 class Llama3Model(HuggingFaceLLM):
-    """Llama-style model for critical error detection."""
-
     def __init__(
         self,
         model_size: str = "small",
@@ -276,8 +214,6 @@ class Llama3Model(HuggingFaceLLM):
 
 
 class DeepSeekModel(HuggingFaceLLM):
-    """DeepSeek-R1 8B model for critical error detection."""
-
     def __init__(
         self,
         model_size: str = "8b",
@@ -289,16 +225,6 @@ class DeepSeekModel(HuggingFaceLLM):
 
 
 def get_llm_model(model_type: str, **kwargs) -> LLMModel:
-    """
-    Get LLM model by type.
-
-    Args:
-        model_type: Type of model ("llama3", "deepseek")
-        **kwargs: Additional arguments for model initialization
-
-    Returns:
-        LLM model instance
-    """
     models = {"llama3": Llama3Model, "deepseek": DeepSeekModel}
 
     if model_type not in models:
@@ -310,8 +236,6 @@ def get_llm_model(model_type: str, **kwargs) -> LLMModel:
 
 
 class LLMEvaluator:
-    """Evaluator for LLM-based critical error detection."""
-
     def __init__(self, model: LLMModel, prompt_template: PromptTemplate):
         self.model = model
         self.prompt_template = prompt_template
@@ -319,15 +243,6 @@ class LLMEvaluator:
     def evaluate_dataset(
         self, test_data: List[Tuple[str, str]]
     ) -> List[Tuple[str, str]]:
-        """
-        Evaluate LLM on test dataset.
-
-        Args:
-            test_data: List of (source, target) pairs
-
-        Returns:
-            List of (prediction, full_response) tuples
-        """
         predictions = []
 
         logger = get_logger("llm.evaluator")
@@ -342,7 +257,6 @@ class LLMEvaluator:
                     )
                     predictions.append((prediction, response))
 
-                    # Update progress bar with current metrics
                     if (i + 1) % 5 == 0:
                         elapsed = time.time() - start_time
                         avg_time = elapsed / (i + 1)
@@ -371,7 +285,6 @@ class LLMEvaluator:
     def calculate_metrics(
         self, predictions: List[str], true_labels: List[str]
     ) -> Dict[str, float]:
-        """Calculate evaluation metrics."""
         from sklearn.metrics import (
             accuracy_score,
             matthews_corrcoef,
@@ -380,7 +293,6 @@ class LLMEvaluator:
 
         logger = get_logger("llm.evaluator.metrics")
 
-        # Convert to binary format
         pred_binary = [1 if p == "ERR" else 0 for p in predictions]
         true_binary = [1 if t == "ERR" else 0 for t in true_labels]
 
