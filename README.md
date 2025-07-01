@@ -112,6 +112,10 @@ project-2/
 ├── logs/                        # Training logs
 ├── src/                         # Source code
 │   └── runner.py               # Main CLI entry point
+├── llm/                        # LLM-based evaluation
+│   ├── prompts.py              # WMT21-based prompt templates
+│   ├── models.py               # LLM model implementations
+│   └── evaluate_llm.py         # LLM evaluation script
 └── scripts/                     # Utility scripts
 ```
 

@@ -2,7 +2,7 @@ DATA_DIR = data/catastrophic_errors
 RESULTS_DIR = results
 LOGS_DIR = logs
 CONFIG_FILE = config.yaml
-PYTHON_SOURCE_DIRS = src scripts
+PYTHON_SOURCE_DIRS = src scripts llm
 
 define load_best_model
 $(or $(shell find $(RESULTS_DIR)/checkpoints -name "best_model_*.pt" -type f | sort -r | head -1), \
@@ -46,6 +46,10 @@ help:
 	@echo "  $(BLUE)lint$(RESET)           - Run linting with flake8"
 	@echo "  $(BLUE)all$(RESET)            - Run clean, format, and lint"
 	@echo ""
+	@echo "$(BOLD)LLM Commands:$(RESET)"
+	@echo "  $(BLUE)evaluate-llm [LANG=en-de] $(RESET)- Evaluate LLM models"
+	@echo "  $(BLUE)evaluate-llm-all         $(RESET)- Evaluate ALL models on ALL languages"
+	@echo ""
 	@echo "$(BOLD)Examples:$(RESET)"
 	@echo "  make train LANG=en-de"
 	@echo "  make debug-train LANG=en-de"
@@ -53,6 +57,8 @@ help:
 	@echo "  make evaluate LANG=en-de"
 	@echo "  make predict LANG=en-de MODEL=path/to/model.pt"
 	@echo "  make predict LANG=en-de NO_EVAL_FORMAT=1"
+	@echo "  make evaluate-llm-all"
+	@echo "  make evaluate-llm-all SAMPLE_SIZE=50"
 	@echo ""
 	@echo "$(BOLD)Variables:$(RESET)"
 	@echo "  LANG=<pair>       Language pair (en-de, en-ja, en-zh, en-cs)"
@@ -204,5 +210,45 @@ check-performance:
 	@echo "$(BOLD)Analyzing model performance...$(RESET)"
 	pipenv run python scripts/check_model_performance.py
 	@echo "$(GREEN)Performance analysis completed$(RESET)"
+
+evaluate-llm:
+	@echo "$(BOLD)Evaluating LLM models...$(RESET)"
+	@mkdir -p $(RESULTS_DIR)/llm_evaluation
+	pipenv run python llm/evaluate_llm.py \
+		$(if $(MODEL),--model $(MODEL),--model phi3) \
+		$(if $(PROMPT),--prompt $(PROMPT),--prompt zero_shot) \
+		$(if $(LANG),--language-pair $(LANG),--language-pair en-de) \
+		$(if $(SAMPLE_SIZE),--sample-size $(SAMPLE_SIZE)) \
+		$(if $(DEVICE),--device $(DEVICE)) \
+		$(if $(LOAD_8BIT),--load-in-8bit)
+	@echo "$(GREEN)LLM evaluation completed$(RESET)"
+
+evaluate-llm-all:
+	@echo "$(BOLD)Evaluating ALL LLM models on ALL language pairs...$(RESET)"
+	@mkdir -p $(RESULTS_DIR)/llm_evaluation
+	@echo "$(BLUE)Starting comprehensive LLM evaluation...$(RESET)"
+	@for lang in en-cs en-de en-ja en-zh; do \
+		echo "$(BOLD)Evaluating language pair: $$lang$(RESET)"; \
+		pipenv run python llm/evaluate_llm.py \
+			--model all \
+			--prompt all \
+			--language-pair $$lang \
+			$(if $(SAMPLE_SIZE),--sample-size $(SAMPLE_SIZE)) \
+			$(if $(DEVICE),--device $(DEVICE)) \
+			$(if $(LOAD_8BIT),--load-in-8bit) || \
+		{ echo "$(RED)Failed to evaluate $$lang, continuing...$(RESET)"; }; \
+	done
+	@echo "$(GREEN)All LLM evaluations completed$(RESET)"
+
+debug-llm:
+	@echo "$(BOLD)Debug LLM evaluation (small sample)...$(RESET)"
+	@mkdir -p $(RESULTS_DIR)/llm_evaluation
+	pipenv run python llm/evaluate_llm.py \
+		--model phi3 \
+		--prompt zero_shot \
+		$(if $(LANG),--language-pair $(LANG),--language-pair en-de) \
+		--sample-size 10 \
+		--device auto
+	@echo "$(GREEN)Debug LLM evaluation completed$(RESET)"
 
 all: clean format lint
