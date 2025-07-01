@@ -1,0 +1,31 @@
+{
+  "total_evaluations": 16,
+  "models": [
+    "deepseek",
+    "llama3"
+  ],
+  "prompt_types": [
+    "few_shot",
+    "zero_shot"
+  ],
+  "language_pairs": [
+    "en-cs",
+    "en-de",
+    "en-ja",
+    "en-zh"
+  ],
+  "best_overall": {
+    "model": "llama3",
+    "prompt_type": "few_shot",
+    "language_pair": "en-de",
+    "mcc": 0.44963551562230825,
+    "accuracy": 0.78
+  },
+  "average_metrics": {
+    "mcc": 0.11026540973805352,
+    "accuracy": 0.6587500000000001,
+    "precision": 0.21314345376845376,
+    "recall": 0.41592261904761907,
+    "f1": 0.21804806139205116
+  }
+}

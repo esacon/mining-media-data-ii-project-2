@@ -1,0 +1,26 @@
+{
+  "en-cs": {
+    "timestamp": "20250630_221757",
+    "mcc": 0.2754861058056155,
+    "accuracy": 0.8394332939787486,
+    "file": "training_history_20250630_221757_en-cs.json"
+  },
+  "en-de": {
+    "timestamp": "20250630_221858",
+    "mcc": 0.3747788165476391,
+    "accuracy": 0.7632468996617813,
+    "file": "training_history_20250630_221858_en-de.json"
+  },
+  "en-ja": {
+    "timestamp": "20250630_221817",
+    "mcc": 0.07643068823979486,
+    "accuracy": 0.8994219653179191,
+    "file": "training_history_20250630_221817_en-ja.json"
+  },
+  "en-zh": {
+    "timestamp": "20250630_222006",
+    "mcc": 0.19444503363724344,
+    "accuracy": 0.8509554140127389,
+    "file": "training_history_20250630_222006_en-zh.json"
+  }
+}

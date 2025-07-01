@@ -1,0 +1,17 @@
+Model,Prompt_Type,Language_Pair,Sample_Size,Accuracy,MCC,Precision,Recall,F1,File
+deepseek,few_shot,en-cs,50,0.88,0.3834725550676243,0.6666666666666666,0.2857142857142857,0.4,llm_results_deepseek_few_shot_en-cs.json
+deepseek,few_shot,en-de,50,0.74,0.05521232783270178,0.3333333333333333,0.08333333333333333,0.13333333333333333,llm_results_deepseek_few_shot_en-de.json
+deepseek,few_shot,en-ja,50,0.86,0.0,0.0,0.0,0.0,llm_results_deepseek_few_shot_en-ja.json
+deepseek,few_shot,en-zh,50,0.84,-0.07537783614444091,0.0,0.0,0.0,llm_results_deepseek_few_shot_en-zh.json
+deepseek,zero_shot,en-cs,50,0.86,0.21177936240075526,0.5,0.14285714285714285,0.2222222222222222,llm_results_deepseek_zero_shot_en-cs.json
+deepseek,zero_shot,en-de,50,0.74,-0.08027878384985948,0.0,0.0,0.0,llm_results_deepseek_zero_shot_en-de.json
+deepseek,zero_shot,en-ja,50,0.84,-0.0576390417704235,0.0,0.0,0.0,llm_results_deepseek_zero_shot_en-ja.json
+deepseek,zero_shot,en-zh,50,0.86,-0.05275349613399974,0.0,0.0,0.0,llm_results_deepseek_zero_shot_en-zh.json
+llama3,few_shot,en-cs,50,0.7,0.37649664426800933,0.3,0.8571428571428571,0.4444444444444444,llm_results_llama3_few_shot_en-cs.json
+llama3,few_shot,en-de,50,0.78,0.44963551562230825,0.5333333333333333,0.6666666666666666,0.5925925925925926,llm_results_llama3_few_shot_en-de.json
+llama3,few_shot,en-ja,50,0.44,-0.09020602778952333,0.1111111111111111,0.42857142857142855,0.17647058823529413,llm_results_llama3_few_shot_en-ja.json
+llama3,few_shot,en-zh,50,0.72,0.2744302150984869,0.25,0.6666666666666666,0.36363636363636365,llm_results_llama3_few_shot_en-zh.json
+llama3,zero_shot,en-cs,50,0.36,0.2142786153238172,0.1794871794871795,1.0,0.30434782608695654,llm_results_llama3_zero_shot_en-cs.json
+llama3,zero_shot,en-de,50,0.48,0.07647191129018725,0.26666666666666666,0.6666666666666666,0.38095238095238093,llm_results_llama3_zero_shot_en-de.json
+llama3,zero_shot,en-ja,50,0.2,-0.057639041770423505,0.13333333333333333,0.8571428571428571,0.23076923076923078,llm_results_llama3_zero_shot_en-ja.json
+llama3,zero_shot,en-zh,50,0.24,0.13636363636363635,0.13636363636363635,1.0,0.24,llm_results_llama3_zero_shot_en-zh.json

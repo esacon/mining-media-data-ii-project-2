@@ -1,0 +1,30 @@
+{
+  "en-cs": {
+    "model": "deepseek",
+    "prompt_type": "few_shot",
+    "mcc": 0.3834725550676243,
+    "accuracy": 0.88,
+    "f1": 0.4
+  },
+  "en-de": {
+    "model": "llama3",
+    "prompt_type": "few_shot",
+    "mcc": 0.44963551562230825,
+    "accuracy": 0.78,
+    "f1": 0.5925925925925926
+  },
+  "en-ja": {
+    "model": "deepseek",
+    "prompt_type": "few_shot",
+    "mcc": 0.0,
+    "accuracy": 0.86,
+    "f1": 0.0
+  },
+  "en-zh": {
+    "model": "llama3",
+    "prompt_type": "few_shot",
+    "mcc": 0.2744302150984869,
+    "accuracy": 0.72,
+    "f1": 0.36363636363636365
+  }
+}

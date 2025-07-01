@@ -1,0 +1,75 @@
+{
+  "total_models": 4,
+  "languages": [
+    "en-cs",
+    "en-de",
+    "en-ja",
+    "en-zh"
+  ],
+  "available_models": {
+    "best_models": [
+      "best_model_20250630_210527_en-de_epoch_1.pt",
+      "best_model_20250630_210527_en-de_epoch_2.pt",
+      "best_model_20250630_221757_en-cs_epoch_1.pt",
+      "best_model_20250630_221757_en-cs_epoch_2.pt",
+      "best_model_20250630_221757_en-cs_epoch_3.pt",
+      "best_model_20250630_221817_en-ja_epoch_1.pt",
+      "best_model_20250630_221817_en-ja_epoch_3.pt",
+      "best_model_20250630_221858_en-de_epoch_1.pt",
+      "best_model_20250630_221858_en-de_epoch_2.pt",
+      "best_model_20250630_222006_en-zh_epoch_1.pt",
+      "best_model_20250630_222006_en-zh_epoch_2.pt",
+      "best_model_20250701_010713_en-de_epoch_1.pt",
+      "best_model_20250701_011147_en-de_epoch_1.pt"
+    ],
+    "final_models": [
+      "final_model_20250630_221757_en-cs.pt",
+      "final_model_20250630_221817_en-ja.pt",
+      "final_model_20250630_221858_en-de.pt",
+      "final_model_20250630_222006_en-zh.pt",
+      "final_model_20250701_010713_en-de.pt",
+      "final_model_20250701_011147_en-de.pt"
+    ],
+    "all_models": [
+      "best_model_20250630_210527_en-de_epoch_1.pt",
+      "best_model_20250630_210527_en-de_epoch_2.pt",
+      "best_model_20250630_221757_en-cs_epoch_1.pt",
+      "best_model_20250630_221757_en-cs_epoch_2.pt",
+      "best_model_20250630_221757_en-cs_epoch_3.pt",
+      "best_model_20250630_221817_en-ja_epoch_1.pt",
+      "best_model_20250630_221817_en-ja_epoch_3.pt",
+      "best_model_20250630_221858_en-de_epoch_1.pt",
+      "best_model_20250630_221858_en-de_epoch_2.pt",
+      "best_model_20250630_222006_en-zh_epoch_1.pt",
+      "best_model_20250630_222006_en-zh_epoch_2.pt",
+      "best_model_20250701_010713_en-de_epoch_1.pt",
+      "best_model_20250701_011147_en-de_epoch_1.pt",
+      "final_model_20250630_221757_en-cs.pt",
+      "final_model_20250630_221817_en-ja.pt",
+      "final_model_20250630_221858_en-de.pt",
+      "final_model_20250630_222006_en-zh.pt",
+      "final_model_20250701_010713_en-de.pt",
+      "final_model_20250701_011147_en-de.pt"
+    ]
+  },
+  "latest_evaluation": {
+    "accuracy": 0.8689400687110319,
+    "mcc": 0.39067312142370697,
+    "precision": 0.7755610972568578,
+    "recall": 0.24860111910471622,
+    "f1": 0.3765133171912833,
+    "auc_roc": 0.8717034846698912
+  },
+  "best_overall": {
+    "language": "en-de",
+    "timestamp": "20250630_221858",
+    "mcc": 0.3747788165476391,
+    "accuracy": 0.7632468996617813,
+    "file": "training_history_20250630_221858_en-de.json"
+  },
+  "average_metrics": {
+    "mcc": 0.2302851610575732,
+    "accuracy": 0.8382643932427969,
+    "final_val_loss": 0.45146091487214113
+  }
+}

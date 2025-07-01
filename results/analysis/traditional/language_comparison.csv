@@ -1,0 +1,5 @@
+Language,Best_MCC_Mean,Best_MCC_Std,Best_MCC_Min,Best_MCC_Max,Best_Accuracy_Mean,Best_Accuracy_Std,Final_Val_Loss_Mean,Final_Val_Loss_Std
+en-cs,0.2755,,0.2755,0.2755,0.8394,,0.4344,
+en-de,0.3748,,0.3748,0.3748,0.7632,,0.5787,
+en-ja,0.0764,,0.0764,0.0764,0.8994,,0.3459,
+en-zh,0.1944,,0.1944,0.1944,0.851,,0.4467,
