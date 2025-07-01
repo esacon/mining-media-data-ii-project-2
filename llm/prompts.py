@@ -52,26 +52,18 @@ class ZeroShotPrompt(PromptTemplate):
 
     def __init__(self):
         template = (
-            "TASK: Detect critical errors in machine translation using WMT21 guidelines.\n"  # noqa: E501
-            "CRITICAL ERROR CATEGORIES:\n"
-            "1. TOXICITY: hate speech, violence, profanity added/removed\n"
-            "2. SAFETY RISKS: health/safety content removed/added  \n"
-            "3. NAMED ENTITIES: names, places, organizations wrong\n"
-            "4. SENTIMENT POLARITY: meaning reversed due to negation\n"
-            "5. NUMBERS/UNITS: incorrect numbers, dates, times, measurements\n\n"
-            "IGNORE: grammar mistakes, style differences, awkward phrasing\n\n"
-            "SOURCE: {source}\n"
-            "TARGET: {target}\n\n"
-            "DO NOT:\n"
-            "- Add explanations\n"
-            "- Add reasoning\n"
-            "- Add examples\n"
-            "- Add punctuation\n"
-            "- Add anything after your answer\n\n"
-            "RESPOND WITH EXACTLY ONE WORD:\n"
-            "- ERR (if critical errors exist)\n"
-            "- NOT (if no critical errors)\n\n"
-            "ANSWER:"
+            "You are evaluating machine translations for critical errors.\n\n"
+            "Critical errors include:\n"
+            "- Toxicity (hate speech, violence, profanity changes)\n"
+            "- Safety risks (health/safety information changes)\n"
+            "- Named entities (wrong names, places, organizations)\n"
+            "- Sentiment reversal (meaning flipped by negation)\n"
+            "- Numbers/units (wrong dates, times, measurements)\n\n"
+            "Ignore minor grammar, style, or phrasing differences.\n\n"
+            "Classify this translation as ERR (critical error) or NOT (no critical error):\n\n"
+            "Source: {source}\n"
+            "Target: {target}\n"
+            "Label:"
         )
         super().__init__(template)
 
@@ -82,35 +74,27 @@ class FewShotPrompt(PromptTemplate):
     examples = create_few_shot_examples()
     examples_str = "\n".join(
         [
-            f"SOURCE: {source}\nTARGET: {target}\nANSWER: {label}\n"
+            f"Source: {source}\nTarget: {target}\nLabel: {label}\n"
             for source, target, label in examples
         ]
     )
 
     def __init__(self):
         template = (
-            "TASK: Detect critical errors in machine translation using WMT21 guidelines.\n"  # noqa: E501
-            "CRITICAL ERROR CATEGORIES:\n"
-            "1. TOXICITY: hate speech, violence, profanity added/removed\n"
-            "2. SAFETY RISKS: health/safety content removed/added  \n"
-            "3. NAMED ENTITIES: names, places, organizations wrong\n"
-            "4. SENTIMENT POLARITY: meaning reversed due to negation\n"
-            "5. NUMBERS/UNITS: incorrect numbers, dates, times, measurements\n\n"
-            "IGNORE: grammar mistakes, style differences, awkward phrasing\n\n"
-            "EXAMPLES:\n"
+            "You are evaluating machine translations for critical errors.\n\n"
+            "Critical errors include:\n"
+            "- Toxicity (hate speech, violence, profanity changes)\n"
+            "- Safety risks (health/safety information changes)\n"
+            "- Named entities (wrong names, places, organizations)\n"
+            "- Sentiment reversal (meaning flipped by negation)\n"
+            "- Numbers/units (wrong dates, times, measurements)\n\n"
+            "Ignore minor grammar, style, or phrasing differences.\n\n"
+            "Examples:\n"
             f"{self.examples_str}\n"
-            "SOURCE: {source}\n"
-            "TARGET: {target}\n\n"
-            "DO NOT:\n"
-            "- Add explanations to your answer\n"
-            "- Add reasoning\n"
-            "- Add examples\n"
-            "- Add punctuation\n"
-            "- Add anything after your answer\n\n"
-            "RESPOND WITH EXACTLY ONE WORD:\n"
-            "- ERR (if critical errors exist)\n"
-            "- NOT (if no critical errors)\n\n"
-            "ANSWER:"
+            "Now classify this translation:\n"
+            "Source: {source}\n"
+            "Target: {target}\n"
+            "Label:"
         )
         super().__init__(template)
 
