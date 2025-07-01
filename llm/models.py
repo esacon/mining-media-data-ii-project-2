@@ -169,7 +169,7 @@ class HuggingFaceLLM(LLMModel):
             outputs = self.pipeline(prompt, **generation_config)
             response = outputs[0]["generated_text"]
 
-            return self._truncate_to_first_word(response.strip())
+            return response.strip()
 
         except Exception as e:
             logger = get_logger(f"llm.{self.__class__.__name__}")
